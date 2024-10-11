@@ -38,7 +38,7 @@ public class TaskManager {
     }
 
     // Save tasks to a file
-    private void saveTasksToFile() {
+    public void saveTasksToFile() {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
             oos.writeObject(tasks);
             System.out.println("Tasks saved to file.");  // Debug statement
