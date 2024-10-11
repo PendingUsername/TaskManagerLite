@@ -15,15 +15,21 @@ import net.synedra.validatorfx.Validator;
 
 public class TaskManagerUI extends Application {
     private TaskManager taskManager = new TaskManager();
-    private ObservableList<Task> taskList = FXCollections.observableArrayList(taskManager.getAllTasks());
+    private ObservableList<Task> taskList;
 
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Task Manager");
 
-        // Create list view to display tasks
+        // Initialize ObservableList with loaded tasks
+        taskList = FXCollections.observableArrayList(taskManager.getAllTasks());
+
+        // Create ListView to display tasks
         ListView<Task> listView = new ListView<>(taskList);
         listView.setPrefHeight(200);
+
+        // Ensure ListView updates with the loaded tasks at startup
+        taskList.setAll(taskManager.getAllTasks());  // Force the ListView to refresh
 
         // Input fields
         TextField titleField = new TextField();
@@ -52,7 +58,7 @@ public class TaskManagerUI extends Application {
                 String description = descriptionField.getText();
                 Task newTask = new Task(taskList.size() + 1, title, description);
                 taskManager.addTask(newTask);
-                taskList.setAll(taskManager.getAllTasks());
+                taskList.setAll(taskManager.getAllTasks());  // Refresh task list in ListView
                 titleField.clear();
                 descriptionField.clear();
                 Notifications.create().title("Task Added").text("Task has been added successfully!").showInformation();
@@ -65,7 +71,7 @@ public class TaskManagerUI extends Application {
             Task selectedTask = listView.getSelectionModel().getSelectedItem();
             if (selectedTask != null) {
                 taskManager.completeTask(selectedTask.getId());
-                taskList.setAll(taskManager.getAllTasks());
+                taskList.setAll(taskManager.getAllTasks());  // Refresh task list in ListView
                 Notifications.create().title("Task Completed").text("Task has been marked as completed.").showInformation();
             }
         });
@@ -76,7 +82,7 @@ public class TaskManagerUI extends Application {
             Task selectedTask = listView.getSelectionModel().getSelectedItem();
             if (selectedTask != null) {
                 taskManager.deleteTask(selectedTask.getId());
-                taskList.setAll(taskManager.getAllTasks());
+                taskList.setAll(taskManager.getAllTasks());  // Refresh task list in ListView
                 Notifications.create().title("Task Deleted").text("Task has been deleted.").showInformation();
             }
         });
