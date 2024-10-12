@@ -8,6 +8,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.util.Callback;
 import org.controlsfx.control.Notifications;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
@@ -31,6 +32,33 @@ public class TaskManagerUI extends Application {
         ListView<Task> listView = new ListView<>(taskList);
         listView.setPrefHeight(200);
 
+        // Set ListView cell factory for priority-based color coding
+        listView.setCellFactory(new Callback<ListView<Task>, ListCell<Task>>() {
+            @Override
+            public ListCell<Task> call(ListView<Task> param) {
+                return new ListCell<>() {
+                    @Override
+                    protected void updateItem(Task task, boolean empty) {
+                        super.updateItem(task, empty);
+                        if (empty || task == null) {
+                            setText(null);
+                            setStyle("");  // Reset style when empty
+                        } else {
+                            setText(task.toString());
+                            // Apply color based on priority
+                            if (task.getPriority() == TaskPriority.LOW) {
+                                setStyle("-fx-text-fill: green;");
+                            } else if (task.getPriority() == TaskPriority.MEDIUM) {
+                                setStyle("-fx-text-fill: orange;");
+                            } else if (task.getPriority() == TaskPriority.HIGH) {
+                                setStyle("-fx-text-fill: red;");
+                            }
+                        }
+                    }
+                };
+            }
+        });
+
         // Input fields for task details
         TextField titleField = new TextField();
         titleField.setPromptText("Enter task title");
@@ -38,9 +66,13 @@ public class TaskManagerUI extends Application {
         TextArea descriptionField = new TextArea();
         descriptionField.setPromptText("Enter task description");
 
-        // DatePicker for deadline
         DatePicker deadlinePicker = new DatePicker();
         deadlinePicker.setPromptText("Select task deadline");
+
+        // ComboBox for task priority
+        ComboBox<TaskPriority> priorityComboBox = new ComboBox<>();
+        priorityComboBox.setItems(FXCollections.observableArrayList(TaskPriority.values()));
+        priorityComboBox.setPromptText("Select task priority");
 
         // Validator for input fields
         Validator validator = new Validator();
@@ -60,17 +92,19 @@ public class TaskManagerUI extends Application {
             if (validator.validate()) {
                 String title = titleField.getText();
                 String description = descriptionField.getText();
-                LocalDate deadline = deadlinePicker.getValue();  // Get selected deadline
+                LocalDate deadline = deadlinePicker.getValue();
+                TaskPriority priority = priorityComboBox.getValue();  // Get selected priority
 
                 if (selectedTask == null) {
                     // Add new task
-                    Task newTask = new Task(taskList.size() + 1, title, description, deadline);
+                    Task newTask = new Task(taskList.size() + 1, title, description, deadline, priority);
                     taskManager.addTask(newTask);
                 } else {
                     // Update existing task
                     selectedTask.setTitle(title);
                     selectedTask.setDescription(description);
-                    selectedTask.setDeadline(deadline);  // Update the deadline
+                    selectedTask.setDeadline(deadline);
+                    selectedTask.setPriority(priority);  // Update priority
                     taskManager.saveTasksToFile();  // Save updated tasks
                 }
 
@@ -78,6 +112,7 @@ public class TaskManagerUI extends Application {
                 titleField.clear();
                 descriptionField.clear();
                 deadlinePicker.setValue(null);  // Clear deadline picker
+                priorityComboBox.setValue(null);  // Clear priority selection
                 selectedTask = null;  // Reset selected task after editing
                 addButton.setText("Add Task");  // Change button text back to "Add Task"
                 Notifications.create().title("Task Saved").text("Task has been added/updated successfully!").showInformation();
@@ -114,16 +149,17 @@ public class TaskManagerUI extends Application {
                 selectedTask = task;  // Track the task being edited
                 titleField.setText(task.getTitle());
                 descriptionField.setText(task.getDescription());
-                deadlinePicker.setValue(task.getDeadline());  // Populate deadline picker
+                deadlinePicker.setValue(task.getDeadline());
+                priorityComboBox.setValue(task.getPriority());  // Populate priority combo box
                 addButton.setText("Save Task");  // Change button text to "Save Task"
             }
         });
 
         // Layout setup
-        VBox layout = new VBox(10, titleField, descriptionField, deadlinePicker, addButton, listView, editButton, completeButton, deleteButton);
+        VBox layout = new VBox(10, titleField, descriptionField, deadlinePicker, priorityComboBox, addButton, listView, editButton, completeButton, deleteButton);
         layout.setPadding(new Insets(10));
 
-        Scene scene = new Scene(layout, 450, 450);
+        Scene scene = new Scene(layout, 450, 500);
         primaryStage.setScene(scene);
         primaryStage.show();
     }
