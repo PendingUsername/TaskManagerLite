@@ -95,6 +95,11 @@ public class TaskManagerUI extends Application {
                 LocalDate deadline = deadlinePicker.getValue();
                 TaskPriority priority = priorityComboBox.getValue();  // Get selected priority
 
+                if (priority == null) {
+                    Notifications.create().title("Error").text("Please select a priority").showWarning();
+                    return;  // Do not proceed without priority selection
+                }
+
                 if (selectedTask == null) {
                     // Add new task
                     Task newTask = new Task(taskList.size() + 1, title, description, deadline, priority);
