@@ -6,6 +6,7 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Callback;
@@ -32,7 +33,7 @@ public class TaskManagerUI extends Application {
         ListView<Task> listView = new ListView<>(taskList);
         listView.setPrefHeight(200);
 
-        // Set ListView cell factory for priority-based color coding
+        // Set ListView cell factory to add icons for task status and restore priority coloring
         listView.setCellFactory(new Callback<ListView<Task>, ListCell<Task>>() {
             @Override
             public ListCell<Task> call(ListView<Task> param) {
@@ -42,17 +43,37 @@ public class TaskManagerUI extends Application {
                         super.updateItem(task, empty);
                         if (empty || task == null) {
                             setText(null);
-                            setStyle("");  // Reset style when empty
+                            setGraphic(null);  // Reset icon when empty
                         } else {
-                            setText(task.toString());
-                            // Apply color based on priority
+                            // Create the task text label
+                            Label taskLabel = new Label(task.toString());
+
+                            // Set the color of the task text based on priority
                             if (task.getPriority() == TaskPriority.LOW) {
-                                setStyle("-fx-text-fill: green;");
+                                taskLabel.setStyle("-fx-text-fill: green;");
                             } else if (task.getPriority() == TaskPriority.MEDIUM) {
-                                setStyle("-fx-text-fill: orange;");
+                                taskLabel.setStyle("-fx-text-fill: orange;");
                             } else if (task.getPriority() == TaskPriority.HIGH) {
-                                setStyle("-fx-text-fill: red;");
+                                taskLabel.setStyle("-fx-text-fill: red;");
                             }
+
+                            // Create the appropriate status icon (check mark or hourglass)
+                            FontIcon statusIcon;
+                            if (task.isCompleted()) {
+                                statusIcon = new FontIcon(FontAwesomeSolid.CHECK);
+                                statusIcon.setIconSize(18);
+                                statusIcon.setStyle("-fx-fill: green;");  // Green check mark for completed
+                            } else {
+                                statusIcon = new FontIcon(FontAwesomeSolid.HOURGLASS_HALF);
+                                statusIcon.setIconSize(18);
+                                statusIcon.setStyle("-fx-fill: orange;");  // Orange in-progress icon
+                            }
+
+                            // Create HBox to display the icon before the task text
+                            HBox cellContent = new HBox(10);  // 10px spacing
+                            cellContent.getChildren().addAll(statusIcon, taskLabel);  // Icon before the text
+
+                            setGraphic(cellContent);  // Set the HBox as the graphic for this cell
                         }
                     }
                 };
@@ -97,7 +118,7 @@ public class TaskManagerUI extends Application {
 
                 if (priority == null) {
                     Notifications.create().title("Error").text("Please select a priority").showWarning();
-                    return;  // Do not proceed without priority selection
+                    return;  // Prevent task creation without priority
                 }
 
                 if (selectedTask == null) {
@@ -124,14 +145,22 @@ public class TaskManagerUI extends Application {
             }
         });
 
-        // Complete task button with FontAwesome icon
-        Button completeButton = new Button("Complete Task", new FontIcon(FontAwesomeSolid.CHECK));
-        completeButton.setOnAction(e -> {
+        // Toggle completion button
+        Button toggleCompletionButton = new Button("Toggle Completion");
+        toggleCompletionButton.setOnAction(e -> {
             Task task = listView.getSelectionModel().getSelectedItem();
             if (task != null) {
-                taskManager.completeTask(task.getId());
-                taskList.setAll(taskManager.getAllTasks());  // Refresh task list in ListView
-                Notifications.create().title("Task Completed").text("Task has been marked as completed.").showInformation();
+                // Toggle the completion status of the selected task
+                task.setCompleted(!task.isCompleted());
+                taskManager.saveTasksToFile();  // Save the updated completion status
+
+                // Refresh the task list to show the updated completion status
+                taskList.setAll(taskManager.getAllTasks());
+                Notifications.create().title("Task Updated")
+                        .text("Task has been " + (task.isCompleted() ? "completed." : "marked as in-progress."))
+                        .showInformation();
+            } else {
+                Notifications.create().title("No Task Selected").text("Please select a task to toggle completion.").showWarning();
             }
         });
 
@@ -161,10 +190,10 @@ public class TaskManagerUI extends Application {
         });
 
         // Layout setup
-        VBox layout = new VBox(10, titleField, descriptionField, deadlinePicker, priorityComboBox, addButton, listView, editButton, completeButton, deleteButton);
+        VBox layout = new VBox(10, titleField, descriptionField, deadlinePicker, priorityComboBox, addButton, toggleCompletionButton, listView, editButton, deleteButton);
         layout.setPadding(new Insets(10));
 
-        Scene scene = new Scene(layout, 450, 500);
+        Scene scene = new Scene(layout, 500, 550);
         primaryStage.setScene(scene);
         primaryStage.show();
     }
