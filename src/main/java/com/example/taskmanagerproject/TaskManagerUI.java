@@ -16,6 +16,8 @@ import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import net.synedra.validatorfx.Validator;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 public class TaskManagerUI extends Application {
     private TaskManager taskManager = new TaskManager();
@@ -57,16 +59,20 @@ public class TaskManagerUI extends Application {
                                 taskLabel.setStyle("-fx-text-fill: red;");
                             }
 
-                            // Create the appropriate status icon (check mark or hourglass)
+                            // Create the appropriate status icon (check mark, hourglass, or exclamation mark)
                             FontIcon statusIcon;
                             if (task.isCompleted()) {
                                 statusIcon = new FontIcon(FontAwesomeSolid.CHECK);
                                 statusIcon.setIconSize(18);
                                 statusIcon.setStyle("-fx-fill: green;");  // Green check mark for completed
+                            } else if (task.hasDeadlinePassed()) {
+                                statusIcon = new FontIcon(FontAwesomeSolid.EXCLAMATION_TRIANGLE);
+                                statusIcon.setIconSize(18);
+                                statusIcon.setStyle("-fx-fill: red;");  // Red exclamation mark for deadline passed
                             } else {
                                 statusIcon = new FontIcon(FontAwesomeSolid.HOURGLASS_HALF);
                                 statusIcon.setIconSize(18);
-                                statusIcon.setStyle("-fx-fill: orange;");  // Orange in-progress icon
+                                statusIcon.setStyle("-fx-fill: orange;");  // Orange hourglass for in-progress
                             }
 
                             // Create HBox to display the icon before the task text
@@ -87,8 +93,19 @@ public class TaskManagerUI extends Application {
         TextArea descriptionField = new TextArea();
         descriptionField.setPromptText("Enter task description");
 
+        // DatePicker for the deadline date
         DatePicker deadlinePicker = new DatePicker();
-        deadlinePicker.setPromptText("Select task deadline");
+        deadlinePicker.setPromptText("Select task date");
+
+        // Time selection using Spinner for 12-hour clock and ComboBox for AM/PM
+        Spinner<Integer> hourSpinner = new Spinner<>(1, 12, 12);
+        Spinner<Integer> minuteSpinner = new Spinner<>(0, 59, 0);
+        ComboBox<String> amPmComboBox = new ComboBox<>(FXCollections.observableArrayList("AM", "PM"));
+        amPmComboBox.setValue("PM");  // Default to PM
+        hourSpinner.setPrefWidth(60);
+        minuteSpinner.setPrefWidth(60);
+
+        HBox timeBox = new HBox(10, hourSpinner, minuteSpinner, amPmComboBox);  // Combine time spinners in an HBox
 
         // ComboBox for task priority
         ComboBox<TaskPriority> priorityComboBox = new ComboBox<>();
@@ -113,12 +130,25 @@ public class TaskManagerUI extends Application {
             if (validator.validate()) {
                 String title = titleField.getText();
                 String description = descriptionField.getText();
-                LocalDate deadline = deadlinePicker.getValue();
+                LocalDate date = deadlinePicker.getValue();
+                int hour = hourSpinner.getValue();
+                int minute = minuteSpinner.getValue();
+                String amPm = amPmComboBox.getValue();
+
+                // Convert the 12-hour time with AM/PM to 24-hour time
+                if (amPm.equals("PM") && hour != 12) {
+                    hour += 12;  // Convert PM hours to 24-hour format
+                } else if (amPm.equals("AM") && hour == 12) {
+                    hour = 0;  // Midnight case (12 AM is 00:00 in 24-hour time)
+                }
+
+                LocalTime time = LocalTime.of(hour, minute);
+                LocalDateTime deadline = LocalDateTime.of(date, time);  // Combine date and time
                 TaskPriority priority = priorityComboBox.getValue();  // Get selected priority
 
-                if (priority == null) {
-                    Notifications.create().title("Error").text("Please select a priority").showWarning();
-                    return;  // Prevent task creation without priority
+                if (priority == null || date == null) {
+                    Notifications.create().title("Error").text("Please select a date and priority").showWarning();
+                    return;  // Prevent task creation without priority or date
                 }
 
                 if (selectedTask == null) {
@@ -183,17 +213,27 @@ public class TaskManagerUI extends Application {
                 selectedTask = task;  // Track the task being edited
                 titleField.setText(task.getTitle());
                 descriptionField.setText(task.getDescription());
-                deadlinePicker.setValue(task.getDeadline());
+                deadlinePicker.setValue(task.getDeadline().toLocalDate());  // Populate date picker
+
+                // Convert 24-hour time to 12-hour time for display
+                int hour = task.getDeadline().getHour();
+                String amPm = (hour >= 12) ? "PM" : "AM";
+                if (hour > 12) hour -= 12;  // Convert to 12-hour format
+                if (hour == 0) hour = 12;   // Midnight case
+                hourSpinner.getValueFactory().setValue(hour);
+                minuteSpinner.getValueFactory().setValue(task.getDeadline().getMinute());
+                amPmComboBox.setValue(amPm);  // Set AM/PM combo box
+
                 priorityComboBox.setValue(task.getPriority());  // Populate priority combo box
                 addButton.setText("Save Task");  // Change button text to "Save Task"
             }
         });
 
         // Layout setup
-        VBox layout = new VBox(10, titleField, descriptionField, deadlinePicker, priorityComboBox, addButton, toggleCompletionButton, listView, editButton, deleteButton);
+        VBox layout = new VBox(10, titleField, descriptionField, deadlinePicker, timeBox, priorityComboBox, addButton, toggleCompletionButton, listView, editButton, deleteButton);
         layout.setPadding(new Insets(10));
 
-        Scene scene = new Scene(layout, 500, 550);
+        Scene scene = new Scene(layout, 500, 600);
         primaryStage.setScene(scene);
         primaryStage.show();
     }
