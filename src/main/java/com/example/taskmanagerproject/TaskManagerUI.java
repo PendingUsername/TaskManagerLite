@@ -6,6 +6,8 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -347,6 +349,52 @@ public class TaskManagerUI extends Application {
                             HBox cellContent = new HBox(10, statusIcon, taskInfoBox);
 
                             setGraphic(cellContent);
+
+                            // Add right-click ContextMenu for each task cell
+                            ContextMenu contextMenu = new ContextMenu();
+
+                            // Context menu item: Edit Task
+                            MenuItem editMenuItem = new MenuItem("Edit Task");
+                            editMenuItem.setOnAction(event -> {
+                                selectedTask = task;
+                                titleField.setText(task.getTitle());
+                                descriptionField.setText(task.getDescription());
+                                deadlinePicker.setValue(task.getDeadline().toLocalDate());
+                                hourSpinner.getValueFactory().setValue(task.getDeadline().getHour() % 12 == 0 ? 12 : task.getDeadline().getHour() % 12);
+                                minuteSpinner.getValueFactory().setValue(task.getDeadline().getMinute());
+                                amPmComboBox.setValue(task.getDeadline().getHour() < 12 ? "AM" : "PM");
+                                priorityComboBox.setValue(task.getPriority());
+                                editButton.setDisable(false);
+                            });
+
+                            // Context menu item: Mark Complete/Incomplete
+                            MenuItem toggleCompleteMenuItem = new MenuItem(task.isCompleted() ? "Mark Incomplete" : "Mark Complete");
+                            toggleCompleteMenuItem.setOnAction(event -> {
+                                task.setCompleted(!task.isCompleted());
+                                taskManager.saveTasksToFile();
+                                taskList.setAll(taskManager.getAllTasks());
+                                Notifications.create().title("Task Updated").text("Task completion status has been toggled.").showInformation();
+                            });
+
+                            // Context menu item: Delete Task
+                            MenuItem deleteMenuItem = new MenuItem("Delete Task");
+                            deleteMenuItem.setOnAction(event -> {
+                                taskManager.deleteTask(task.getId());
+                                taskList.setAll(taskManager.getAllTasks());
+                                Notifications.create().title("Task Deleted").text("Task has been deleted.").showInformation();
+                            });
+
+                            // Add menu items to the context menu
+                            contextMenu.getItems().addAll(editMenuItem, toggleCompleteMenuItem, deleteMenuItem);
+
+                            // Show the context menu on right-click (using MouseEvent)
+                            setOnMouseClicked((MouseEvent event) -> {
+                                if (event.getButton() == MouseButton.SECONDARY && task != null) {
+                                    contextMenu.show(this, event.getScreenX(), event.getScreenY());
+                                } else {
+                                    contextMenu.hide();  // Hide the context menu if not right-click
+                                }
+                            });
                         }
                     }
                 };
