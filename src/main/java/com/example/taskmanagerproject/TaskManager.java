@@ -6,63 +6,55 @@ import java.util.List;
 
 public class TaskManager {
     private List<Task> tasks;
-    private final String filePath = "tasks.dat";  // File to store tasks
+    private static final String TASKS_FILE = "tasks.dat";
 
     public TaskManager() {
         tasks = new ArrayList<>();
-        loadTasksFromFile();  // Load tasks when TaskManager is created
+        loadTasksFromFile();
     }
 
-    public void addTask(Task task) {
-        tasks.add(task);
-        saveTasksToFile();  // Save tasks after adding
-    }
-
+    // Get all tasks from the list
     public List<Task> getAllTasks() {
         return tasks;
     }
 
-    public void completeTask(int id) {
-        for (Task task : tasks) {
-            if (task.getId() == id) {
-                task.setCompleted(true);
-                saveTasksToFile();  // Save tasks after completion
-                return;
-            }
-        }
+    // Add a task and save to file
+    public void addTask(Task task) {
+        tasks.add(task);
+        saveTasksToFile();
     }
 
+    // Delete a specific task by ID
     public void deleteTask(int id) {
         tasks.removeIf(task -> task.getId() == id);
-        saveTasksToFile();  // Save tasks after deletion
+        saveTasksToFile();
     }
 
-    // Save tasks to a file
+    // New method to delete all tasks
+    public void deleteAllTasks() {
+        tasks.clear();  // Remove all tasks from the list
+        saveTasksToFile();  // Save the empty list to the file
+    }
+
+    // Save tasks to the file
     public void saveTasksToFile() {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
-            oos.writeObject(tasks);
-            System.out.println("Tasks saved to file.");  // Debug statement
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(TASKS_FILE))) {
+            out.writeObject(tasks);
         } catch (IOException e) {
             System.out.println("Error saving tasks: " + e.getMessage());
         }
     }
 
-    // Load tasks from a file
-    private void loadTasksFromFile() {
-        File file = new File(filePath);
-        if (!file.exists()) {
-            System.out.println("No tasks file found.");  // Debug statement
-            return;  // If file doesn't exist, nothing to load
-        }
-
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filePath))) {
-            tasks = (List<Task>) ois.readObject();
-            System.out.println("Tasks loaded: " + tasks.size());  // Debug statement
-            for (Task task : tasks) {
-                System.out.println("Loaded Task: " + task);  // Print out loaded tasks
+    // Load tasks from the file
+    @SuppressWarnings("unchecked")
+    public void loadTasksFromFile() {
+        File file = new File(TASKS_FILE);
+        if (file.exists()) {
+            try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(file))) {
+                tasks = (List<Task>) in.readObject();
+            } catch (IOException | ClassNotFoundException e) {
+                System.out.println("Error loading tasks: " + e.getMessage());
             }
-        } catch (IOException | ClassNotFoundException e) {
-            System.out.println("Error loading tasks: " + e.getMessage());
         }
     }
 }

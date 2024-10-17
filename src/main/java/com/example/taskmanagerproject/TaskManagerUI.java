@@ -6,6 +6,7 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -23,6 +24,7 @@ public class TaskManagerUI extends Application {
     private TaskManager taskManager = new TaskManager();
     private ObservableList<Task> taskList;
     private Task selectedTask = null;  // Track the task being edited
+    private boolean showCompletedTasks = true;  // Toggle visibility of completed tasks
 
     @Override
     public void start(Stage primaryStage) {
@@ -34,6 +36,86 @@ public class TaskManagerUI extends Application {
         // Create ListView to display tasks
         ListView<Task> listView = new ListView<>(taskList);
         listView.setPrefHeight(200);
+
+        // Create a MenuBar
+        MenuBar menuBar = new MenuBar();
+
+        // File Menu
+        Menu fileMenu = new Menu("File");
+        MenuItem newTaskMenuItem = new MenuItem("New Task");
+        MenuItem saveTasksMenuItem = new MenuItem("Save Tasks");
+        MenuItem deleteAllMenuItem = new MenuItem("Delete All Tasks");
+        MenuItem exitMenuItem = new MenuItem("Exit");
+
+        // Add menu items to File menu
+        fileMenu.getItems().addAll(newTaskMenuItem, saveTasksMenuItem, new SeparatorMenuItem(), deleteAllMenuItem, new SeparatorMenuItem(), exitMenuItem);
+
+        // Edit Menu
+        Menu editMenu = new Menu("Edit");
+        MenuItem undoMenuItem = new MenuItem("Undo");
+        MenuItem redoMenuItem = new MenuItem("Redo");
+
+        // Add menu items to Edit menu
+        editMenu.getItems().addAll(undoMenuItem, redoMenuItem);
+
+        // View Menu
+        Menu viewMenu = new Menu("View");
+        CheckMenuItem showCompletedMenuItem = new CheckMenuItem("Show Completed Tasks");
+        showCompletedMenuItem.setSelected(true);  // Default to showing completed tasks
+
+        // Add menu items to View menu
+        viewMenu.getItems().addAll(showCompletedMenuItem);
+
+        // Help Menu
+        Menu helpMenu = new Menu("Help");
+        MenuItem aboutMenuItem = new MenuItem("About");
+
+        // Add menu items to Help menu
+        helpMenu.getItems().add(aboutMenuItem);
+
+        // Add all menus to the menu bar
+        menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, helpMenu);
+
+        // Handle Exit action
+        exitMenuItem.setOnAction(e -> {
+            primaryStage.close();  // Exit the application
+        });
+
+        // Handle About action (Display an alert with about info)
+        aboutMenuItem.setOnAction(e -> {
+            Alert aboutAlert = new Alert(Alert.AlertType.INFORMATION);
+            aboutAlert.setTitle("About");
+            aboutAlert.setHeaderText("Task Manager Application");
+            aboutAlert.setContentText("This is a simple task manager application built with JavaFX.");
+            aboutAlert.showAndWait();
+        });
+
+        // Handle Save Tasks action (Save tasks to file)
+        saveTasksMenuItem.setOnAction(e -> {
+            taskManager.saveTasksToFile();
+            Notifications.create().title("Tasks Saved").text("All tasks have been saved successfully.").showInformation();
+        });
+
+        // Handle Delete All Tasks action (with confirmation)
+        deleteAllMenuItem.setOnAction(e -> {
+            Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmAlert.setTitle("Confirm Deletion");
+            confirmAlert.setHeaderText("Delete All Tasks?");
+            confirmAlert.setContentText("This will delete all tasks. Are you sure?");
+            confirmAlert.showAndWait().ifPresent(response -> {
+                if (response == ButtonType.OK) {
+                    taskManager.deleteAllTasks();
+                    taskList.setAll(taskManager.getAllTasks());  // Refresh task list in ListView
+                    Notifications.create().title("Tasks Deleted").text("All tasks have been deleted.").showInformation();
+                }
+            });
+        });
+
+        // Handle showing/hiding completed tasks
+        showCompletedMenuItem.setOnAction(e -> {
+            showCompletedTasks = showCompletedMenuItem.isSelected();
+            refreshTaskList();
+        });
 
         // Set ListView cell factory to add icons for task status and restore priority coloring
         listView.setCellFactory(new Callback<ListView<Task>, ListCell<Task>>() {
@@ -47,6 +129,13 @@ public class TaskManagerUI extends Application {
                             setText(null);
                             setGraphic(null);  // Reset icon when empty
                         } else {
+                            // Hide completed tasks if the option is selected
+                            if (!showCompletedTasks && task.isCompleted()) {
+                                setText(null);
+                                setGraphic(null);
+                                return;
+                            }
+
                             // Task Title Label
                             Label titleLabel = new Label("Title: " + task.getTitle());
                             titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
@@ -176,65 +265,15 @@ public class TaskManagerUI extends Application {
             }
         });
 
-        // Toggle completion button
-        Button toggleCompletionButton = new Button("Toggle Completion");
-        toggleCompletionButton.setOnAction(e -> {
-            Task task = listView.getSelectionModel().getSelectedItem();
-            if (task != null) {
-                // Toggle the completion status of the selected task
-                task.setCompleted(!task.isCompleted());
-                taskManager.saveTasksToFile();  // Save the updated completion status
+        // Main layout with MenuBar at the top and everything else in the center
+        BorderPane mainLayout = new BorderPane();
+        mainLayout.setTop(menuBar);
+        VBox contentLayout = new VBox(10, titleField, descriptionField, deadlinePicker, timeBox, priorityComboBox, addButton, listView);
+        contentLayout.setPadding(new Insets(10));
+        mainLayout.setCenter(contentLayout);
 
-                // Refresh the task list to show the updated completion status
-                taskList.setAll(taskManager.getAllTasks());
-                Notifications.create().title("Task Updated")
-                        .text("Task has been " + (task.isCompleted() ? "completed." : "marked as in-progress."))
-                        .showInformation();
-            } else {
-                Notifications.create().title("No Task Selected").text("Please select a task to toggle completion.").showWarning();
-            }
-        });
-
-        // Delete task button with FontAwesome icon
-        Button deleteButton = new Button("Delete Task", new FontIcon(FontAwesomeSolid.TRASH));
-        deleteButton.setOnAction(e -> {
-            Task task = listView.getSelectionModel().getSelectedItem();
-            if (task != null) {
-                taskManager.deleteTask(task.getId());
-                taskList.setAll(taskManager.getAllTasks());  // Refresh task list in ListView
-                Notifications.create().title("Task Deleted").text("Task has been deleted.").showInformation();
-            }
-        });
-
-        // Edit task button: Populate selected task in input fields
-        Button editButton = new Button("Edit Task", new FontIcon(FontAwesomeSolid.PENCIL_ALT));
-        editButton.setOnAction(e -> {
-            Task task = listView.getSelectionModel().getSelectedItem();
-            if (task != null) {
-                selectedTask = task;  // Track the task being edited
-                titleField.setText(task.getTitle());
-                descriptionField.setText(task.getDescription());
-                deadlinePicker.setValue(task.getDeadline().toLocalDate());  // Populate date picker
-
-                // Convert 24-hour time to 12-hour time for display
-                int hour = task.getDeadline().getHour();
-                String amPm = (hour >= 12) ? "PM" : "AM";
-                if (hour > 12) hour -= 12;  // Convert to 12-hour format
-                if (hour == 0) hour = 12;   // Midnight case
-                hourSpinner.getValueFactory().setValue(hour);
-                minuteSpinner.getValueFactory().setValue(task.getDeadline().getMinute());
-                amPmComboBox.setValue(amPm);  // Set AM/PM combo box
-
-                priorityComboBox.setValue(task.getPriority());  // Populate priority combo box
-                addButton.setText("Save Task");  // Change button text to "Save Task"
-            }
-        });
-
-        // Layout setup
-        VBox layout = new VBox(10, titleField, descriptionField, deadlinePicker, timeBox, priorityComboBox, addButton, toggleCompletionButton, listView, editButton, deleteButton);
-        layout.setPadding(new Insets(10));
-
-        Scene scene = new Scene(layout, 500, 600);
+        // Set the scene
+        Scene scene = new Scene(mainLayout, 500, 600);
         primaryStage.setScene(scene);
         primaryStage.show();
     }
@@ -251,6 +290,11 @@ public class TaskManagerUI extends Application {
             default:
                 return "black;";
         }
+    }
+
+    // Refresh the task list when toggling completed tasks
+    private void refreshTaskList() {
+        taskList.setAll(taskManager.getAllTasks());
     }
 
     public static void main(String[] args) {
