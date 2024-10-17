@@ -47,39 +47,40 @@ public class TaskManagerUI extends Application {
                             setText(null);
                             setGraphic(null);  // Reset icon when empty
                         } else {
-                            // Create the task text label
-                            Label taskLabel = new Label(task.toString());
+                            // Task Title Label
+                            Label titleLabel = new Label("Title: " + task.getTitle());
+                            titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
-                            // Set the color of the task text based on priority
-                            if (task.getPriority() == TaskPriority.LOW) {
-                                taskLabel.setStyle("-fx-text-fill: green;");
-                            } else if (task.getPriority() == TaskPriority.MEDIUM) {
-                                taskLabel.setStyle("-fx-text-fill: orange;");
-                            } else if (task.getPriority() == TaskPriority.HIGH) {
-                                taskLabel.setStyle("-fx-text-fill: red;");
-                            }
+                            // Task Description Label
+                            Label descriptionLabel = new Label("Description: " + task.getDescription());
+                            descriptionLabel.setStyle("-fx-font-size: 12px;");
 
-                            // Create the appropriate status icon (check mark, hourglass, or exclamation mark)
+                            // Task Deadline Label
+                            Label deadlineLabel = new Label("Deadline: " + (task.getDeadline() != null ? task.getDeadline() : "No deadline"));
+                            deadlineLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: darkblue;");
+
+                            // Task Priority Label
+                            Label priorityLabel = new Label("Priority: " + task.getPriority());
+                            priorityLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + getPriorityColor(task));
+
+                            // Task Status Icon (check mark, hourglass, exclamation mark)
                             FontIcon statusIcon;
                             if (task.isCompleted()) {
                                 statusIcon = new FontIcon(FontAwesomeSolid.CHECK);
-                                statusIcon.setIconSize(18);
-                                statusIcon.setStyle("-fx-fill: green;");  // Green check mark for completed
+                                statusIcon.setStyle("-fx-fill: green;");
                             } else if (task.hasDeadlinePassed()) {
                                 statusIcon = new FontIcon(FontAwesomeSolid.EXCLAMATION_TRIANGLE);
-                                statusIcon.setIconSize(18);
-                                statusIcon.setStyle("-fx-fill: red;");  // Red exclamation mark for deadline passed
+                                statusIcon.setStyle("-fx-fill: red;");
                             } else {
                                 statusIcon = new FontIcon(FontAwesomeSolid.HOURGLASS_HALF);
-                                statusIcon.setIconSize(18);
-                                statusIcon.setStyle("-fx-fill: orange;");  // Orange hourglass for in-progress
+                                statusIcon.setStyle("-fx-fill: orange;");
                             }
 
-                            // Create HBox to display the icon before the task text
-                            HBox cellContent = new HBox(10);  // 10px spacing
-                            cellContent.getChildren().addAll(statusIcon, taskLabel);  // Icon before the text
+                            // Layout the task info
+                            VBox taskInfoBox = new VBox(5, titleLabel, descriptionLabel, deadlineLabel, priorityLabel);  // 5px spacing
+                            HBox cellContent = new HBox(10, statusIcon, taskInfoBox);  // Icon and info side by side
 
-                            setGraphic(cellContent);  // Set the HBox as the graphic for this cell
+                            setGraphic(cellContent);  // Set HBox as the graphic for the cell
                         }
                     }
                 };
@@ -236,6 +237,20 @@ public class TaskManagerUI extends Application {
         Scene scene = new Scene(layout, 500, 600);
         primaryStage.setScene(scene);
         primaryStage.show();
+    }
+
+    // Helper method to get priority color
+    private String getPriorityColor(Task task) {
+        switch (task.getPriority()) {
+            case LOW:
+                return "green;";
+            case MEDIUM:
+                return "orange;";
+            case HIGH:
+                return "red;";
+            default:
+                return "black;";
+        }
     }
 
     public static void main(String[] args) {

@@ -4,11 +4,14 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 public class Task implements Serializable {
+    // Add this serialVersionUID field
+    private static final long serialVersionUID = 1L;  // Version 1 for serialization
+
     private int id;
     private String title;
     private String description;
     private boolean isCompleted;
-    private LocalDateTime deadline;  // Use LocalDateTime for both date and time
+    private LocalDateTime deadline;
     private TaskPriority priority;
 
     // Constructor
@@ -29,7 +32,7 @@ public class Task implements Serializable {
     public void setDescription(String description) { this.description = description; }
     public boolean isCompleted() { return isCompleted; }
     public void setCompleted(boolean completed) { this.isCompleted = completed; }
-    public LocalDateTime getDeadline() { return deadline; }  // Use LocalDateTime
+    public LocalDateTime getDeadline() { return deadline; }
     public void setDeadline(LocalDateTime deadline) { this.deadline = deadline; }
     public TaskPriority getPriority() { return priority; }
     public void setPriority(TaskPriority priority) { this.priority = priority; }
@@ -41,9 +44,12 @@ public class Task implements Serializable {
 
     @Override
     public String toString() {
-        return "Task ID: " + id + ", Title: " + title + ", Description: " + description +
-                ", Completed: " + (isCompleted ? "Yes" : "No") +
-                ", Deadline: " + deadline.toString() +  // Convert LocalDateTime to string
-                ", Priority: " + (priority != null ? priority : "None");
+        return "Task ID: " + id + "\n" +
+                "Title: " + title + "\n" +
+                "Description: " + description + "\n" +
+                "Deadline: " + (deadline != null ? deadline : "No deadline") + "\n" +
+                "Priority: " + (priority != null ? priority : "None") + "\n" +
+                "Completed: " + (isCompleted ? "Yes" : "No");
     }
+
 }
