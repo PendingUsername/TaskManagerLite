@@ -27,6 +27,7 @@ public class TaskManagerUI extends Application {
     private ObservableList<Task> taskList;
     private Task selectedTask = null;
     private boolean showCompletedTasks = true;
+    private Scene mainScene;
 
     @Override
     public void start(Stage primaryStage) {
@@ -42,14 +43,13 @@ public class TaskManagerUI extends Application {
 
         // File Menu
         Menu fileMenu = new Menu("File");
-        MenuItem newTaskMenuItem = new MenuItem("New Task");
         MenuItem saveTasksMenuItem = new MenuItem("Save Tasks");
         MenuItem deleteAllMenuItem = new MenuItem("Delete All Tasks");
-        MenuItem exportToTxtMenuItem = new MenuItem("Export to Text file");
-        MenuItem exportToCsvMenuItem = new MenuItem("Export to CSV file");
+        MenuItem exportToTxtMenuItem = new MenuItem("Export to TXT");
+        MenuItem exportToCsvMenuItem = new MenuItem("Export to CSV");
         MenuItem exitMenuItem = new MenuItem("Exit");
 
-        fileMenu.getItems().addAll(newTaskMenuItem, saveTasksMenuItem, deleteAllMenuItem, new SeparatorMenuItem(), exportToTxtMenuItem, exportToCsvMenuItem, new SeparatorMenuItem(), exitMenuItem);
+        fileMenu.getItems().addAll(saveTasksMenuItem, deleteAllMenuItem, new SeparatorMenuItem(), exportToTxtMenuItem, exportToCsvMenuItem, new SeparatorMenuItem(), exitMenuItem);
 
         // Edit Menu (Undo/Redo placeholders)
         Menu editMenu = new Menu("Edit");
@@ -57,11 +57,13 @@ public class TaskManagerUI extends Application {
         MenuItem redoMenuItem = new MenuItem("Redo");
         editMenu.getItems().addAll(undoMenuItem, redoMenuItem);
 
-        // View Menu (Show Completed Tasks)
+        // View Menu (Show Completed Tasks + Dark/Light Mode Toggle)
         Menu viewMenu = new Menu("View");
         CheckMenuItem showCompletedMenuItem = new CheckMenuItem("Show Completed Tasks");
-        showCompletedMenuItem.setSelected(true);  // Default to showing completed tasks
-        viewMenu.getItems().addAll(showCompletedMenuItem);
+        showCompletedMenuItem.setSelected(true);
+        MenuItem toggleThemeMenuItem = new MenuItem("Toggle Dark/Light Mode");
+
+        viewMenu.getItems().addAll(showCompletedMenuItem, toggleThemeMenuItem);
 
         // Help Menu
         Menu helpMenu = new Menu("Help");
@@ -70,6 +72,20 @@ public class TaskManagerUI extends Application {
 
         // Add all menus to the MenuBar
         menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, helpMenu);
+
+        // Toggle between light and dark themes
+        toggleThemeMenuItem.setOnAction(e -> {
+            String lightTheme = getClass().getResource("/css/light-theme.css").toExternalForm();
+            String darkTheme = getClass().getResource("/css/dark-theme.css").toExternalForm();
+
+            if (mainScene.getStylesheets().contains(lightTheme)) {
+                mainScene.getStylesheets().remove(lightTheme);
+                mainScene.getStylesheets().add(darkTheme);
+            } else {
+                mainScene.getStylesheets().remove(darkTheme);
+                mainScene.getStylesheets().add(lightTheme);
+            }
+        });
 
         // Export to TXT file
         exportToTxtMenuItem.setOnAction(e -> {
@@ -117,7 +133,7 @@ public class TaskManagerUI extends Application {
         });
 
         // Handle Exit action
-        exitMenuItem.setOnAction(e -> primaryStage.close());  // Exit the application
+        exitMenuItem.setOnAction(e -> primaryStage.close());
 
         // Handle About action
         aboutMenuItem.setOnAction(e -> {
@@ -153,7 +169,7 @@ public class TaskManagerUI extends Application {
         hourSpinner.setPrefWidth(60);
         minuteSpinner.setPrefWidth(60);
 
-        HBox timeBox = new HBox(10, hourSpinner, minuteSpinner, amPmComboBox);  // Combine time spinners in an HBox
+        HBox timeBox = new HBox(10, hourSpinner, minuteSpinner, amPmComboBox);
 
         // ComboBox for task priority
         ComboBox<TaskPriority> priorityComboBox = new ComboBox<>();
@@ -172,8 +188,17 @@ public class TaskManagerUI extends Application {
                 })
                 .decorates(titleField);
 
-        // Add/Edit task button
+        // Add/Edit task buttons
         Button addButton = new Button("Add Task");
+        Button editButton = new Button("Edit Task");
+        editButton.setDisable(true);  // Initially disabled until a task is selected
+        Button toggleCompletionButton = new Button("Mark Complete/Incomplete");
+
+        // Create an HBox to align the buttons horizontally
+        HBox buttonBox = new HBox(10);  // 10px spacing between buttons
+        buttonBox.getChildren().addAll(addButton, editButton, toggleCompletionButton);
+
+        // Add Task Action
         addButton.setOnAction(e -> {
             if (validator.validate()) {
                 String title = titleField.getText();
@@ -185,41 +210,88 @@ public class TaskManagerUI extends Application {
 
                 // Convert the 12-hour time with AM/PM to 24-hour time
                 if (amPm.equals("PM") && hour != 12) {
-                    hour += 12;  // Convert PM hours to 24-hour format
+                    hour += 12;
                 } else if (amPm.equals("AM") && hour == 12) {
-                    hour = 0;  // Midnight case (12 AM is 00:00 in 24-hour time)
+                    hour = 0;
                 }
 
                 LocalTime time = LocalTime.of(hour, minute);
                 LocalDateTime deadline = LocalDateTime.of(date, time);  // Combine date and time
-                TaskPriority priority = priorityComboBox.getValue();  // Get selected priority
+                TaskPriority priority = priorityComboBox.getValue();
 
                 if (priority == null || date == null) {
                     Notifications.create().title("Error").text("Please select a date and priority").showWarning();
-                    return;  // Prevent task creation without priority or date
+                    return;
                 }
 
-                if (selectedTask == null) {
-                    // Add new task
-                    Task newTask = new Task(taskList.size() + 1, title, description, deadline, priority);
-                    taskManager.addTask(newTask);
-                } else {
-                    // Update existing task
-                    selectedTask.setTitle(title);
-                    selectedTask.setDescription(description);
-                    selectedTask.setDeadline(deadline);
-                    selectedTask.setPriority(priority);  // Update priority
-                    taskManager.saveTasksToFile();  // Save updated tasks
-                }
+                // Add new task
+                Task newTask = new Task(taskList.size() + 1, title, description, deadline, priority);
+                taskManager.addTask(newTask);
 
                 taskList.setAll(taskManager.getAllTasks());  // Refresh task list
                 titleField.clear();
                 descriptionField.clear();
                 deadlinePicker.setValue(null);  // Clear deadline picker
-                priorityComboBox.setValue(null);  // Clear priority selection
-                selectedTask = null;  // Reset selected task after editing
-                addButton.setText("Add Task");  // Change button text back to "Add Task"
-                Notifications.create().title("Task Saved").text("Task has been added/updated successfully!").showInformation();
+                priorityComboBox.setValue(null);
+                selectedTask = null;
+                editButton.setDisable(true);  // Disable edit button when no task is selected
+                Notifications.create().title("Task Added").text("Task has been added successfully!").showInformation();
+            }
+        });
+
+        // Edit Task Action
+        editButton.setOnAction(e -> {
+            if (selectedTask != null) {
+                String title = titleField.getText();
+                String description = descriptionField.getText();
+                LocalDate date = deadlinePicker.getValue();
+                int hour = hourSpinner.getValue();
+                int minute = minuteSpinner.getValue();
+                String amPm = amPmComboBox.getValue();
+
+                // Convert the 12-hour time with AM/PM to 24-hour time
+                if (amPm.equals("PM") && hour != 12) {
+                    hour += 12;
+                } else if (amPm.equals("AM") && hour == 12) {
+                    hour = 0;
+                }
+
+                LocalTime time = LocalTime.of(hour, minute);
+                LocalDateTime deadline = LocalDateTime.of(date, time);
+                TaskPriority priority = priorityComboBox.getValue();
+
+                if (priority == null || date == null) {
+                    Notifications.create().title("Error").text("Please select a date and priority").showWarning();
+                    return;
+                }
+
+                // Update the task
+                selectedTask.setTitle(title);
+                selectedTask.setDescription(description);
+                selectedTask.setDeadline(deadline);
+                selectedTask.setPriority(priority);
+
+                taskManager.saveTasksToFile();
+                taskList.setAll(taskManager.getAllTasks());  // Refresh task list
+                titleField.clear();
+                descriptionField.clear();
+                deadlinePicker.setValue(null);
+                priorityComboBox.setValue(null);
+                selectedTask = null;  // Clear selection after editing
+                editButton.setDisable(true);  // Disable the edit button when no task is selected
+                addButton.setDisable(false);  // Enable the add button again
+                Notifications.create().title("Task Updated").text("Task has been updated successfully!").showInformation();
+            }
+        });
+
+        toggleCompletionButton.setOnAction(e -> {
+            if (selectedTask != null) {
+                selectedTask.setCompleted(!selectedTask.isCompleted());
+                taskManager.saveTasksToFile();
+                taskList.setAll(taskManager.getAllTasks());  // Refresh task list
+                Notifications.create().title("Task Updated").text("Task completion status has been toggled.").showInformation();
+            } else {
+                Notifications.create().title("No Task Selected").text("Please select a task to toggle completion.").showWarning();
             }
         });
 
@@ -233,9 +305,8 @@ public class TaskManagerUI extends Application {
                         super.updateItem(task, empty);
                         if (empty || task == null) {
                             setText(null);
-                            setGraphic(null);  // Reset when empty
+                            setGraphic(null);
                         } else {
-                            // Hide completed tasks if the option is selected
                             if (!showCompletedTasks && task.isCompleted()) {
                                 setText(null);
                                 setGraphic(null);
@@ -272,26 +343,42 @@ public class TaskManagerUI extends Application {
                             }
 
                             // Layout the task info
-                            VBox taskInfoBox = new VBox(5, titleLabel, descriptionLabel, deadlineLabel, priorityLabel);  // 5px spacing
-                            HBox cellContent = new HBox(10, statusIcon, taskInfoBox);  // Icon and info side by side
+                            VBox taskInfoBox = new VBox(5, titleLabel, descriptionLabel, deadlineLabel, priorityLabel);
+                            HBox cellContent = new HBox(10, statusIcon, taskInfoBox);
 
-                            setGraphic(cellContent);  // Set HBox as the graphic for the cell
+                            setGraphic(cellContent);
                         }
                     }
                 };
             }
         });
 
+        // Handle task selection from the ListView
+        listView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                selectedTask = newSelection;
+                titleField.setText(selectedTask.getTitle());
+                descriptionField.setText(selectedTask.getDescription());
+                deadlinePicker.setValue(selectedTask.getDeadline().toLocalDate());
+                hourSpinner.getValueFactory().setValue(selectedTask.getDeadline().getHour() % 12 == 0 ? 12 : selectedTask.getDeadline().getHour() % 12);
+                minuteSpinner.getValueFactory().setValue(selectedTask.getDeadline().getMinute());
+                amPmComboBox.setValue(selectedTask.getDeadline().getHour() < 12 ? "AM" : "PM");
+                priorityComboBox.setValue(selectedTask.getPriority());
+                editButton.setDisable(false);  // Enable the edit button when a task is selected
+            }
+        });
+
         // Main layout with MenuBar at the top and everything else in the center
         BorderPane mainLayout = new BorderPane();
         mainLayout.setTop(menuBar);
-        VBox contentLayout = new VBox(10, titleField, descriptionField, deadlinePicker, timeBox, priorityComboBox, addButton, listView);
+        VBox contentLayout = new VBox(10, titleField, descriptionField, deadlinePicker, timeBox, priorityComboBox, buttonBox, listView); // Updated: added buttonBox here
         contentLayout.setPadding(new Insets(10));
         mainLayout.setCenter(contentLayout);
 
-        // Set the scene
-        Scene scene = new Scene(mainLayout, 500, 600);
-        primaryStage.setScene(scene);
+        // Set the scene and apply the light theme by default
+        mainScene = new Scene(mainLayout, 500, 600);
+        mainScene.getStylesheets().add(getClass().getResource("/css/light-theme.css").toExternalForm());
+        primaryStage.setScene(mainScene);
         primaryStage.show();
     }
 
