@@ -32,8 +32,8 @@ public class TaskManager {
 
     // New method to delete all tasks
     public void deleteAllTasks() {
-        tasks.clear();  // Remove all tasks from the list
-        saveTasksToFile();  // Save the empty list to the file
+        tasks.clear();
+        saveTasksToFile();
     }
 
     // Save tasks to the file
@@ -55,6 +55,43 @@ public class TaskManager {
             } catch (IOException | ClassNotFoundException e) {
                 System.out.println("Error loading tasks: " + e.getMessage());
             }
+        }
+    }
+
+    // Export tasks to a TXT file
+    public void exportTasksToTxt(String filename) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
+            for (Task task : tasks) {
+                writer.write("Task ID: " + task.getId() + "\n");
+                writer.write("Title: " + task.getTitle() + "\n");
+                writer.write("Description: " + task.getDescription() + "\n");
+                writer.write("Deadline: " + (task.getDeadline() != null ? task.getDeadline() : "No deadline") + "\n");
+                writer.write("Priority: " + task.getPriority() + "\n");
+                writer.write("Completed: " + (task.isCompleted() ? "Yes" : "No") + "\n");
+                writer.write("--------------------------------------------\n");
+            }
+            System.out.println("Tasks exported to " + filename);
+        } catch (IOException e) {
+            System.out.println("Error exporting tasks to TXT: " + e.getMessage());
+        }
+    }
+
+    // Export tasks to a CSV file
+    public void exportTasksToCsv(String filename) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
+            // Write CSV header
+            writer.write("Task ID,Title,Description,Deadline,Priority,Completed\n");
+            for (Task task : tasks) {
+                writer.write(task.getId() + "," +
+                        task.getTitle() + "," +
+                        task.getDescription().replace(",", ";") + "," +  // Replace commas to avoid CSV issues
+                        (task.getDeadline() != null ? task.getDeadline() : "No deadline") + "," +
+                        task.getPriority() + "," +
+                        (task.isCompleted() ? "Yes" : "No") + "\n");
+            }
+            System.out.println("Tasks exported to " + filename);
+        } catch (IOException e) {
+            System.out.println("Error exporting tasks to CSV: " + e.getMessage());
         }
     }
 }

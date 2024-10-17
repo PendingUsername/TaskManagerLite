@@ -1,4 +1,4 @@
-# Task Manager Project
+# Task Manager Lite
 A lightweight task manager app written in Java
 
 build using ./gradlew build
