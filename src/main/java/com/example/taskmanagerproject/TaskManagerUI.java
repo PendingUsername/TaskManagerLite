@@ -59,13 +59,12 @@ public class TaskManagerUI extends Application {
         MenuItem redoMenuItem = new MenuItem("Redo");
         editMenu.getItems().addAll(undoMenuItem, redoMenuItem);
 
-        // View Menu (Show Completed Tasks + Dark/Light Mode Toggle)
+        // View Menu (Show Completed Tasks)
         Menu viewMenu = new Menu("View");
         CheckMenuItem showCompletedMenuItem = new CheckMenuItem("Show Completed Tasks");
         showCompletedMenuItem.setSelected(true);
-        MenuItem toggleThemeMenuItem = new MenuItem("Toggle Dark/Light Mode");
 
-        viewMenu.getItems().addAll(showCompletedMenuItem, toggleThemeMenuItem);
+        viewMenu.getItems().add(showCompletedMenuItem);
 
         // Help Menu
         Menu helpMenu = new Menu("Help");
@@ -75,12 +74,16 @@ public class TaskManagerUI extends Application {
         // Add all menus to the MenuBar
         menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, helpMenu);
 
-        // Toggle between light and dark themes
-        toggleThemeMenuItem.setOnAction(e -> {
+        // ToggleButton for dark/light mode styled as a slider switch
+        ToggleButton themeToggleButton = new ToggleButton();
+        themeToggleButton.setText(null);  // No text, just the switch
+        themeToggleButton.getStyleClass().add("slider-switch");
+
+        themeToggleButton.setOnAction(e -> {
             String lightTheme = getClass().getResource("/css/light-theme.css").toExternalForm();
             String darkTheme = getClass().getResource("/css/dark-theme.css").toExternalForm();
 
-            if (mainScene.getStylesheets().contains(lightTheme)) {
+            if (themeToggleButton.isSelected()) {
                 mainScene.getStylesheets().remove(lightTheme);
                 mainScene.getStylesheets().add(darkTheme);
             } else {
@@ -88,6 +91,11 @@ public class TaskManagerUI extends Application {
                 mainScene.getStylesheets().add(lightTheme);
             }
         });
+
+        // Layout: HBox to include MenuBar and the ToggleButton
+        HBox menuBarWithToggle = new HBox(menuBar, themeToggleButton);
+        menuBarWithToggle.setSpacing(10);
+        menuBarWithToggle.setPadding(new Insets(10));
 
         // Export to TXT file
         exportToTxtMenuItem.setOnAction(e -> {
@@ -416,9 +424,9 @@ public class TaskManagerUI extends Application {
             }
         });
 
-        // Main layout with MenuBar at the top and everything else in the center
+        // Main layout with MenuBar and ToggleButton at the top and everything else in the center
         BorderPane mainLayout = new BorderPane();
-        mainLayout.setTop(menuBar);
+        mainLayout.setTop(menuBarWithToggle);  // Updated: MenuBar and ToggleButton at the top
         VBox contentLayout = new VBox(10, titleField, descriptionField, deadlinePicker, timeBox, priorityComboBox, buttonBox, listView); // Updated: added buttonBox here
         contentLayout.setPadding(new Insets(10));
         mainLayout.setCenter(contentLayout);
@@ -426,6 +434,7 @@ public class TaskManagerUI extends Application {
         // Set the scene and apply the light theme by default
         mainScene = new Scene(mainLayout, 500, 600);
         mainScene.getStylesheets().add(getClass().getResource("/css/light-theme.css").toExternalForm());
+        mainScene.getStylesheets().add(getClass().getResource("/css/slider-switch.css").toExternalForm());  // Add toggle switch CSS
         primaryStage.setScene(mainScene);
         primaryStage.show();
     }
