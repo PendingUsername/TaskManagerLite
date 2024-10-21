@@ -59,31 +59,22 @@ public class TaskManagerUI extends Application {
         MenuItem redoMenuItem = new MenuItem("Redo");
         editMenu.getItems().addAll(undoMenuItem, redoMenuItem);
 
-        // View Menu (Show Completed Tasks)
+        // View Menu
         Menu viewMenu = new Menu("View");
         CheckMenuItem showCompletedMenuItem = new CheckMenuItem("Show Completed Tasks");
-        showCompletedMenuItem.setSelected(true);
+        showCompletedMenuItem.setSelected(true); // Default to showing completed tasks
 
-        viewMenu.getItems().add(showCompletedMenuItem);
+        // Add "Dark Mode" option in the View Menu
+        CheckMenuItem darkModeMenuItem = new CheckMenuItem("Dark Mode");
 
-        // Help Menu
-        Menu helpMenu = new Menu("Help");
-        MenuItem aboutMenuItem = new MenuItem("About");
-        helpMenu.getItems().add(aboutMenuItem);
+        viewMenu.getItems().addAll(showCompletedMenuItem, darkModeMenuItem);
 
-        // Add all menus to the MenuBar
-        menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, helpMenu);
-
-        // CheckBox for dark/light mode styled as a slider switch
-        CheckBox themeToggleButton = new CheckBox();  // Use CheckBox for the slider switch
-        themeToggleButton.getStyleClass().add("toggle-button");  // Apply CSS class for styling
-
-        // Toggle between dark and light themes
-        themeToggleButton.setOnAction(e -> {
+        // Toggle Dark Mode when "Dark Mode" is checked
+        darkModeMenuItem.setOnAction(e -> {
             String lightTheme = getClass().getResource("/css/light-theme.css").toExternalForm();
             String darkTheme = getClass().getResource("/css/dark-theme.css").toExternalForm();
 
-            if (themeToggleButton.isSelected()) {
+            if (darkModeMenuItem.isSelected()) {
                 mainScene.getStylesheets().remove(lightTheme);
                 mainScene.getStylesheets().add(darkTheme);
             } else {
@@ -92,10 +83,13 @@ public class TaskManagerUI extends Application {
             }
         });
 
-        // Layout: HBox to include MenuBar and the ToggleButton
-        HBox menuBarWithToggle = new HBox(menuBar, themeToggleButton);
-        menuBarWithToggle.setSpacing(10);
-        menuBarWithToggle.setPadding(new Insets(10));
+        // Help Menu
+        Menu helpMenu = new Menu("Help");
+        MenuItem aboutMenuItem = new MenuItem("About");
+        helpMenu.getItems().add(aboutMenuItem);
+
+        // Add all menus to the MenuBar
+        menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, helpMenu);
 
         // Export to TXT file
         exportToTxtMenuItem.setOnAction(e -> {
@@ -204,7 +198,6 @@ public class TaskManagerUI extends Application {
         editButton.setDisable(true);  // Initially disabled until a task is selected
         Button toggleCompletionButton = new Button("Mark Complete/Incomplete");
 
-        // Create an HBox to align the buttons horizontally
         HBox buttonBox = new HBox(10);  // 10px spacing between buttons
         buttonBox.getChildren().addAll(addButton, editButton, toggleCompletionButton);
 
@@ -426,8 +419,8 @@ public class TaskManagerUI extends Application {
 
         // Create the main layout for the application
         BorderPane mainLayout = new BorderPane();
-        // Add the MenuBar and ToggleButton to the top of the layout
-        mainLayout.setTop(menuBarWithToggle);
+        // Add the MenuBar to the top of the layout
+        mainLayout.setTop(menuBar);
         // Add the rest of your content to the layout (task form, buttons, etc.)
         VBox contentLayout = new VBox(10, titleField, descriptionField, deadlinePicker, timeBox, priorityComboBox, buttonBox, listView);
         contentLayout.setPadding(new Insets(10));
@@ -436,11 +429,9 @@ public class TaskManagerUI extends Application {
         mainScene = new Scene(mainLayout, 500, 600);
         // Add your CSS files to the Scene
         mainScene.getStylesheets().add(getClass().getResource("/css/light-theme.css").toExternalForm());
-        mainScene.getStylesheets().add(getClass().getResource("/css/slider-switch.css").toExternalForm());  // Add the slider switch CSS
         // Set the Scene on the Stage
         primaryStage.setScene(mainScene);
         primaryStage.show();
-
     }
 
     // Helper method to get priority color
