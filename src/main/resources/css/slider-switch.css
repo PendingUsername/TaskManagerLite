@@ -1,27 +1,52 @@
-/* ToggleButton styled as a slider switch */
-.slider-switch {
-    -fx-background-color: #ccc;
-    -fx-background-radius: 15px;
-    -fx-padding: 5;
-    -fx-pref-width: 60px;
-    -fx-pref-height: 30px;
-    -fx-background-insets: 0;
-    -fx-text-fill: transparent;
-    -fx-shape: "M0 0 H60 A15 15 0 0 1 60 30 H0 Z";  /* Slider shape */
+/* Slider Switch Styling */
+.toggle-button {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 30px;
 }
 
-.slider-switch:selected {
-    -fx-background-color: #4caf50;  /* Green when selected */
+.toggle-button label {
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    background-color: grey;
+    display: block;
+    border-radius: 50px;
+    position: relative;
+    transition: background-color 0.3s ease;
 }
 
-.slider-switch .thumb {
-    -fx-background-color: white;
-    -fx-background-radius: 50%;  /* Circular button */
-    -fx-padding: 10;
-    -fx-translate-x: 0;
-    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.2), 5, 0.0, 0, 1);
+.toggle-button label:after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 24px;
+    height: 24px;
+    background-color: #fff;
+    border-radius: 50%;
+    transition: left 0.3s ease;
 }
 
-.slider-switch:selected .thumb {
-    -fx-translate-x: 30px;  /* Move button to the right when selected */
+/* Switch ON (checked) state */
+input[type="checkbox"]:checked + label {
+    background-color: var(--color-headings); /* The active color for the switch */
+}
+
+input[type="checkbox"]:checked + label:after {
+    left: calc(100% - 27px);
+    background-color: #fff;
+}
+
+/* Hidden checkbox input */
+input[type="checkbox"] {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* Transition effect */
+input[type="checkbox"]:active + label:after {
+    width: 30px;
 }

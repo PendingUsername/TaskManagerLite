@@ -74,25 +74,21 @@ public class TaskManagerUI extends Application {
         // Add all menus to the MenuBar
         menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, helpMenu);
 
-        // ToggleButton for dark/light mode styled as a slider switch
-        ToggleButton themeToggleButton = new ToggleButton();
-        themeToggleButton.setText(null);  // No text, just the switch
-        themeToggleButton.getStyleClass().add("slider-switch");
+        // CheckBox for dark/light mode styled as a slider switch
+        CheckBox themeToggleButton = new CheckBox();  // Use CheckBox for the slider switch
+        themeToggleButton.getStyleClass().add("toggle-button");  // Apply CSS class for styling
 
+        // Toggle between dark and light themes
         themeToggleButton.setOnAction(e -> {
-            String lightThemePath = getClass().getResource("/css/light-theme.css").toExternalForm();
-            String darkThemePath = getClass().getResource("/css/dark-theme.css").toExternalForm();
-
-            // Debug print statements
-            System.out.println("Light theme path: " + getClass().getResource("/css/light-theme.css"));
-            System.out.println("Dark theme path: " + getClass().getResource("/css/dark-theme.css"));
+            String lightTheme = getClass().getResource("/css/light-theme.css").toExternalForm();
+            String darkTheme = getClass().getResource("/css/dark-theme.css").toExternalForm();
 
             if (themeToggleButton.isSelected()) {
-                mainScene.getStylesheets().remove(lightThemePath);
-                mainScene.getStylesheets().add(darkThemePath);
+                mainScene.getStylesheets().remove(lightTheme);
+                mainScene.getStylesheets().add(darkTheme);
             } else {
-                mainScene.getStylesheets().remove(darkThemePath);
-                mainScene.getStylesheets().add(lightThemePath);
+                mainScene.getStylesheets().remove(darkTheme);
+                mainScene.getStylesheets().add(lightTheme);
             }
         });
 
@@ -428,19 +424,23 @@ public class TaskManagerUI extends Application {
             }
         });
 
-        // Main layout with MenuBar and ToggleButton at the top and everything else in the center
+        // Create the main layout for the application
         BorderPane mainLayout = new BorderPane();
-        mainLayout.setTop(menuBarWithToggle);  // Updated: MenuBar and ToggleButton at the top
-        VBox contentLayout = new VBox(10, titleField, descriptionField, deadlinePicker, timeBox, priorityComboBox, buttonBox, listView); // Updated: added buttonBox here
+        // Add the MenuBar and ToggleButton to the top of the layout
+        mainLayout.setTop(menuBarWithToggle);
+        // Add the rest of your content to the layout (task form, buttons, etc.)
+        VBox contentLayout = new VBox(10, titleField, descriptionField, deadlinePicker, timeBox, priorityComboBox, buttonBox, listView);
         contentLayout.setPadding(new Insets(10));
         mainLayout.setCenter(contentLayout);
-
-        // Set the scene and apply the light theme by default
+        // Create a Scene with the main layout
         mainScene = new Scene(mainLayout, 500, 600);
+        // Add your CSS files to the Scene
         mainScene.getStylesheets().add(getClass().getResource("/css/light-theme.css").toExternalForm());
-        mainScene.getStylesheets().add(getClass().getResource("/css/slider-switch.css").toExternalForm());  // Add toggle switch CSS
+        mainScene.getStylesheets().add(getClass().getResource("/css/slider-switch.css").toExternalForm());  // Add the slider switch CSS
+        // Set the Scene on the Stage
         primaryStage.setScene(mainScene);
         primaryStage.show();
+
     }
 
     // Helper method to get priority color
