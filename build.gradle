@@ -25,10 +25,12 @@ tasks.withType(JavaCompile) {
 }
 
 application {
+  // Java module and main class configuration
   mainModule = 'com.example.taskmanagerproject'
   mainClass = 'com.example.taskmanagerproject.Main'
 }
 
+// JavaFX plugin configuration
 javafx {
   version = '17.0.6'
   modules = ['javafx.controls', 'javafx.fxml']
@@ -54,10 +56,24 @@ dependencies {
   testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${junitVersion}")
 }
 
+// Ensure the resources folder is included in the build
+sourceSets {
+  main {
+    java {
+      srcDirs = ['src/main/java']
+    }
+    resources {
+      srcDirs = ['src/main/resources']  // Ensure this is where CSS and other resources are located
+    }
+  }
+}
+
+// Use JUnit Platform for running tests
 test {
   useJUnitPlatform()
 }
 
+// JLink plugin to create a customized JRE
 jlink {
   imageZip = project.file("${buildDir}/distributions/app-${javafx.platform.classifier}.zip")
   options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']

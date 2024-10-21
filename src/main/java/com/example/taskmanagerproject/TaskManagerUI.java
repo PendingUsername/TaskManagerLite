@@ -80,15 +80,19 @@ public class TaskManagerUI extends Application {
         themeToggleButton.getStyleClass().add("slider-switch");
 
         themeToggleButton.setOnAction(e -> {
-            String lightTheme = getClass().getResource("/css/light-theme.css").toExternalForm();
-            String darkTheme = getClass().getResource("/css/dark-theme.css").toExternalForm();
+            String lightThemePath = getClass().getResource("/css/light-theme.css").toExternalForm();
+            String darkThemePath = getClass().getResource("/css/dark-theme.css").toExternalForm();
+
+            // Debug print statements
+            System.out.println("Light theme path: " + getClass().getResource("/css/light-theme.css"));
+            System.out.println("Dark theme path: " + getClass().getResource("/css/dark-theme.css"));
 
             if (themeToggleButton.isSelected()) {
-                mainScene.getStylesheets().remove(lightTheme);
-                mainScene.getStylesheets().add(darkTheme);
+                mainScene.getStylesheets().remove(lightThemePath);
+                mainScene.getStylesheets().add(darkThemePath);
             } else {
-                mainScene.getStylesheets().remove(darkTheme);
-                mainScene.getStylesheets().add(lightTheme);
+                mainScene.getStylesheets().remove(darkThemePath);
+                mainScene.getStylesheets().add(lightThemePath);
             }
         });
 
