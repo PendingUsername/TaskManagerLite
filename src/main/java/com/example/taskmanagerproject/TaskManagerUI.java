@@ -14,6 +14,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import javafx.util.StringConverter;
 import org.controlsfx.control.Notifications;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
@@ -172,6 +173,27 @@ public class TaskManagerUI extends Application {
         amPmComboBox.setValue("PM");  // Default to PM
         hourSpinner.setPrefWidth(60);
         minuteSpinner.setPrefWidth(60);
+
+        // Ensure the minute spinner displays two digits
+        minuteSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 59, 0) {
+            {
+                setConverter(new StringConverter<>() {
+                    @Override
+                    public String toString(Integer value) {
+                        return value == null ? "00" : String.format("%02d", value);  // Pads with zero if needed
+                    }
+
+                    @Override
+                    public Integer fromString(String string) {
+                        try {
+                            return Integer.parseInt(string);
+                        } catch (NumberFormatException e) {
+                            return 0;  // Default value if invalid input
+                        }
+                    }
+                });
+            }
+        });
 
         HBox timeBox = new HBox(10, hourSpinner, minuteSpinner, amPmComboBox);
 
