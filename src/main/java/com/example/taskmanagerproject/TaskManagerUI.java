@@ -25,7 +25,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Set;
+import java.util.Stack;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -36,6 +38,10 @@ public class TaskManagerUI extends Application {
     private Task selectedTask = null;
     private boolean showCompletedTasks = true;
     private Scene mainScene;
+
+    // Undo/Redo functionality
+    private Stack<List<Task>> undoStack = new Stack<>();
+    private Stack<List<Task>> redoStack = new Stack<>();
 
     @Override
     public void start(Stage primaryStage) {
@@ -110,7 +116,7 @@ public class TaskManagerUI extends Application {
         sortDropdown.getItems().addAll("Deadline", "Priority", "Creation Date");
         sortDropdown.setValue("Deadline");
 
-        // New ComboBox for filtering by category
+        // ComboBox for category filter
         ComboBox<String> categoryFilterDropdown = new ComboBox<>();
         categoryFilterDropdown.getItems().add("All Categories"); // Default option
         categoryFilterDropdown.setValue("All Categories");
@@ -194,9 +200,31 @@ public class TaskManagerUI extends Application {
         HBox buttonBox = new HBox(10);  // 10px spacing between buttons
         buttonBox.getChildren().addAll(addButton, editButton, toggleCompletionButton);
 
+        // Undo/Redo Menu actions
+        undoMenuItem.setOnAction(e -> {
+            if (!undoStack.isEmpty()) {
+                backupTaskList(redoStack);  // Backup current state to redo stack
+                List<Task> previousState = undoStack.pop();
+                taskManager.setTasks(previousState);  // Restore previous state
+                taskList.setAll(taskManager.getAllTasks());
+                applyFilterAndSort(null, null, null);  // Apply filters and sort
+            }
+        });
+
+        redoMenuItem.setOnAction(e -> {
+            if (!redoStack.isEmpty()) {
+                backupTaskList(undoStack);  // Backup current state to undo stack
+                List<Task> nextState = redoStack.pop();
+                taskManager.setTasks(nextState);  // Restore next state
+                taskList.setAll(taskManager.getAllTasks());
+                applyFilterAndSort(null, null, null);  // Apply filters and sort
+            }
+        });
+
         // Add Task Action
         addButton.setOnAction(e -> {
             if (validator.validate()) {
+                backupTaskList(undoStack);  // Backup current state for undo
                 createOrUpdateTask(titleField, descriptionField, categoryField, deadlinePicker, hourSpinner, minuteSpinner, amPmComboBox, priorityComboBox, false);
                 populateCategoryFilter(categoryFilterDropdown);  // Refresh category filter after adding a task
             }
@@ -205,6 +233,7 @@ public class TaskManagerUI extends Application {
         // Edit Task Action
         editButton.setOnAction(e -> {
             if (selectedTask != null) {
+                backupTaskList(undoStack);  // Backup current state for undo
                 createOrUpdateTask(titleField, descriptionField, categoryField, deadlinePicker, hourSpinner, minuteSpinner, amPmComboBox, priorityComboBox, true);
                 populateCategoryFilter(categoryFilterDropdown);  // Refresh category filter after editing a task
             }
@@ -213,6 +242,7 @@ public class TaskManagerUI extends Application {
         // Toggle task completion status
         toggleCompletionButton.setOnAction(e -> {
             if (selectedTask != null) {
+                backupTaskList(undoStack);  // Backup current state for undo
                 selectedTask.setCompleted(!selectedTask.isCompleted());
                 taskManager.saveTasksToFile();
                 taskList.setAll(taskManager.getAllTasks());  // Refresh task list
@@ -224,7 +254,7 @@ public class TaskManagerUI extends Application {
         });
 
         // Set ListView cell factory to add icons for task status and priority coloring
-        listView.setCellFactory(new Callback<ListView<Task>, ListCell<Task>>() {
+        listView.setCellFactory(new Callback<>() {
             @Override
             public ListCell<Task> call(ListView<Task> param) {
                 return new ListCell<>() {
@@ -311,6 +341,7 @@ public class TaskManagerUI extends Application {
                             // Context menu item: Delete Task
                             MenuItem deleteMenuItem = new MenuItem("Delete Task");
                             deleteMenuItem.setOnAction(event -> {
+                                backupTaskList(undoStack);  // Backup current state for undo
                                 taskManager.deleteTask(task.getId());
                                 taskList.setAll(taskManager.getAllTasks());
                                 applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue());  // Apply filters and sort after delete
@@ -349,6 +380,55 @@ public class TaskManagerUI extends Application {
                 editButton.setDisable(false);  // Enable the edit button when a task is selected
             }
         });
+
+        // Save Tasks Action
+        saveTasksMenuItem.setOnAction(e -> {
+            taskManager.saveTasksToFile();
+            Notifications.create().title("Tasks Saved").text("All tasks have been saved successfully.").showInformation();
+        });
+
+        // Delete All Tasks Action
+        deleteAllMenuItem.setOnAction(e -> {
+            Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmAlert.setTitle("Confirm Deletion");
+            confirmAlert.setHeaderText("Delete All Tasks?");
+            confirmAlert.setContentText("This will delete all tasks. Are you sure?");
+            confirmAlert.showAndWait().ifPresent(response -> {
+                if (response == ButtonType.OK) {
+                    backupTaskList(undoStack);  // Backup current state for undo
+                    taskManager.deleteAllTasks();
+                    taskList.setAll(taskManager.getAllTasks());  // Refresh task list
+                    Notifications.create().title("Tasks Deleted").text("All tasks have been deleted.").showInformation();
+                }
+            });
+        });
+
+        // Export to TXT Action
+        exportToTxtMenuItem.setOnAction(e -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Save Tasks as TXT");
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
+            File file = fileChooser.showSaveDialog(primaryStage);
+            if (file != null) {
+                taskManager.exportTasksToTxt(file.getAbsolutePath());
+                Notifications.create().title("Exported").text("Tasks exported to TXT").showInformation();
+            }
+        });
+
+        // Export to CSV Action
+        exportToCsvMenuItem.setOnAction(e -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Save Tasks as CSV");
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+            File file = fileChooser.showSaveDialog(primaryStage);
+            if (file != null) {
+                taskManager.exportTasksToCsv(file.getAbsolutePath());
+                Notifications.create().title("Exported").text("Tasks exported to CSV").showInformation();
+            }
+        });
+
+        // Exit action
+        exitMenuItem.setOnAction(e -> primaryStage.close());
 
         // Create the main layout for the application
         BorderPane mainLayout = new BorderPane();
@@ -452,6 +532,14 @@ public class TaskManagerUI extends Application {
         }
 
         filteredTaskList.setAll(taskList.stream().filter(filterCondition).sorted(comparator).collect(Collectors.toList()));
+    }
+
+    // Backup current task list to undo/redo stack
+    private void backupTaskList(Stack<List<Task>> stack) {
+        List<Task> currentState = taskList.stream()
+                .map(task -> new Task(task.getId(), task.getTitle(), task.getDescription(), task.getDeadline(), task.getPriority(), task.getCategory()))
+                .collect(Collectors.toList());
+        stack.push(currentState);
     }
 
     // Helper method to get priority color

@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 public class Task implements Serializable {
-    private static final long serialVersionUID = 1L;  // Version 1 for serialization
+    private static final long serialVersionUID = 1L;
 
     private int id;
     private String title;
@@ -12,8 +12,8 @@ public class Task implements Serializable {
     private boolean isCompleted;
     private LocalDateTime deadline;
     private TaskPriority priority;
-    private LocalDateTime creationDate;  // To store when the task is created
-    private String category;  // New field to store category
+    private LocalDateTime creationDate;
+    private String category;
 
     // Constructor
     public Task(int id, String title, String description, LocalDateTime deadline, TaskPriority priority, String category) {
@@ -23,11 +23,23 @@ public class Task implements Serializable {
         this.isCompleted = false;
         this.deadline = deadline;
         this.priority = priority;
-        this.category = category;  // Initialize category
-        this.creationDate = LocalDateTime.now();  // Set creation date
+        this.category = category;
+        this.creationDate = LocalDateTime.now();
     }
 
-    // Getters and setters
+    // Copy constructor
+    public Task(Task other) {
+        this.id = other.id;
+        this.title = other.title;
+        this.description = other.description;
+        this.isCompleted = other.isCompleted;
+        this.deadline = other.deadline;
+        this.priority = other.priority;
+        this.category = other.category;
+        this.creationDate = other.creationDate;
+    }
+
+    // Getters and setters...
     public int getId() { return id; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
@@ -39,17 +51,10 @@ public class Task implements Serializable {
     public void setDeadline(LocalDateTime deadline) { this.deadline = deadline; }
     public TaskPriority getPriority() { return priority; }
     public void setPriority(TaskPriority priority) { this.priority = priority; }
-
-    // New category getter and setter
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
+    public LocalDateTime getCreationDate() { return creationDate; }
 
-    // New getter for creation date
-    public LocalDateTime getCreationDate() {
-        return creationDate;
-    }
-
-    // Check if the deadline has passed
     public boolean hasDeadlinePassed() {
         return LocalDateTime.now().isAfter(deadline);
     }
@@ -59,7 +64,7 @@ public class Task implements Serializable {
         return "Task ID: " + id + "\n" +
                 "Title: " + title + "\n" +
                 "Description: " + description + "\n" +
-                "Category: " + category + "\n" +  // Include category
+                "Category: " + category + "\n" +
                 "Deadline: " + (deadline != null ? deadline : "No deadline") + "\n" +
                 "Priority: " + (priority != null ? priority : "None") + "\n" +
                 "Creation Date: " + creationDate + "\n" +

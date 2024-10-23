@@ -18,6 +18,12 @@ public class TaskManager {
         return tasks;
     }
 
+    // Set the entire task list (for undo/redo operations)
+    public void setTasks(List<Task> tasks) {
+        this.tasks = tasks;
+        saveTasksToFile();
+    }
+
     // Add a task and save to file
     public void addTask(Task task) {
         tasks.add(task);
@@ -30,7 +36,7 @@ public class TaskManager {
         saveTasksToFile();
     }
 
-    // New method to delete all tasks
+    // Delete all tasks
     public void deleteAllTasks() {
         tasks.clear();
         saveTasksToFile();
@@ -62,12 +68,7 @@ public class TaskManager {
     public void exportTasksToTxt(String filename) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
             for (Task task : tasks) {
-                writer.write("Task ID: " + task.getId() + "\n");
-                writer.write("Title: " + task.getTitle() + "\n");
-                writer.write("Description: " + task.getDescription() + "\n");
-                writer.write("Deadline: " + (task.getDeadline() != null ? task.getDeadline() : "No deadline") + "\n");
-                writer.write("Priority: " + task.getPriority() + "\n");
-                writer.write("Completed: " + (task.isCompleted() ? "Yes" : "No") + "\n");
+                writer.write(task.toString());
                 writer.write("--------------------------------------------\n");
             }
             System.out.println("Tasks exported to " + filename);
@@ -80,11 +81,12 @@ public class TaskManager {
     public void exportTasksToCsv(String filename) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
             // Write CSV header
-            writer.write("Task ID,Title,Description,Deadline,Priority,Completed\n");
+            writer.write("Task ID,Title,Description,Category,Deadline,Priority,Completed\n");
             for (Task task : tasks) {
                 writer.write(task.getId() + "," +
                         task.getTitle() + "," +
-                        task.getDescription().replace(",", ";") + "," +  // Replace commas to avoid CSV issues
+                        task.getDescription().replace(",", ";") + "," +
+                        task.getCategory() + "," +
                         (task.getDeadline() != null ? task.getDeadline() : "No deadline") + "," +
                         task.getPriority() + "," +
                         (task.isCompleted() ? "Yes" : "No") + "\n");
