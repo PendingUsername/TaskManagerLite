@@ -24,3 +24,7 @@ Add the ability to save tasks to a file (e.g., text ) and load them when the app
 **Dark Mode**
 
    Switch to "dark mode" in the view tab. 
+   
+**Task Categories**
+
+Allow users to assign categories to tasks.
