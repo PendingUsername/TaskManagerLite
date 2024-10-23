@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Comparator;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -91,7 +92,7 @@ public class TaskManagerUI extends Application {
         // Handle showing completed tasks
         showCompletedMenuItem.setOnAction(e -> {
             showCompletedTasks = showCompletedMenuItem.isSelected();
-            applyFilterAndSort(null, null);
+            applyFilterAndSort(null, null, null);
         });
 
         // Help Menu
@@ -109,10 +110,17 @@ public class TaskManagerUI extends Application {
         sortDropdown.getItems().addAll("Deadline", "Priority", "Creation Date");
         sortDropdown.setValue("Deadline");
 
-        filterDropdown.setOnAction(e -> applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue()));
-        sortDropdown.setOnAction(e -> applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue()));
+        // New ComboBox for filtering by category
+        ComboBox<String> categoryFilterDropdown = new ComboBox<>();
+        categoryFilterDropdown.getItems().add("All Categories"); // Default option
+        categoryFilterDropdown.setValue("All Categories");
+        populateCategoryFilter(categoryFilterDropdown);  // Dynamically populate based on existing tasks
 
-        HBox filterSortBox = new HBox(10, new Label("Filter:"), filterDropdown, new Label("Sort:"), sortDropdown);
+        filterDropdown.setOnAction(e -> applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue()));
+        sortDropdown.setOnAction(e -> applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue()));
+        categoryFilterDropdown.setOnAction(e -> applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue()));
+
+        HBox filterSortBox = new HBox(10, new Label("Filter:"), filterDropdown, new Label("Sort:"), sortDropdown, new Label("Category:"), categoryFilterDropdown);
         filterSortBox.setPadding(new Insets(10));
 
         // Input fields for task details
@@ -121,6 +129,9 @@ public class TaskManagerUI extends Application {
 
         TextArea descriptionField = new TextArea();
         descriptionField.setPromptText("Enter task description");
+
+        TextField categoryField = new TextField();
+        categoryField.setPromptText("Enter task category");
 
         // DatePicker for the deadline date
         DatePicker deadlinePicker = new DatePicker();
@@ -186,14 +197,16 @@ public class TaskManagerUI extends Application {
         // Add Task Action
         addButton.setOnAction(e -> {
             if (validator.validate()) {
-                createOrUpdateTask(titleField, descriptionField, deadlinePicker, hourSpinner, minuteSpinner, amPmComboBox, priorityComboBox, false);
+                createOrUpdateTask(titleField, descriptionField, categoryField, deadlinePicker, hourSpinner, minuteSpinner, amPmComboBox, priorityComboBox, false);
+                populateCategoryFilter(categoryFilterDropdown);  // Refresh category filter after adding a task
             }
         });
 
         // Edit Task Action
         editButton.setOnAction(e -> {
             if (selectedTask != null) {
-                createOrUpdateTask(titleField, descriptionField, deadlinePicker, hourSpinner, minuteSpinner, amPmComboBox, priorityComboBox, true);
+                createOrUpdateTask(titleField, descriptionField, categoryField, deadlinePicker, hourSpinner, minuteSpinner, amPmComboBox, priorityComboBox, true);
+                populateCategoryFilter(categoryFilterDropdown);  // Refresh category filter after editing a task
             }
         });
 
@@ -203,7 +216,7 @@ public class TaskManagerUI extends Application {
                 selectedTask.setCompleted(!selectedTask.isCompleted());
                 taskManager.saveTasksToFile();
                 taskList.setAll(taskManager.getAllTasks());  // Refresh task list
-                applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue());  // Apply filters and sort after toggle
+                applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue());  // Apply filters and sort after toggle
                 Notifications.create().title("Task Updated").text("Task completion status has been toggled.").showInformation();
             } else {
                 Notifications.create().title("No Task Selected").text("Please select a task to toggle completion.").showWarning();
@@ -236,6 +249,10 @@ public class TaskManagerUI extends Application {
                             Label descriptionLabel = new Label("Description: " + task.getDescription());
                             descriptionLabel.setStyle("-fx-font-size: 12px;");
 
+                            // Task Category Label
+                            Label categoryLabel = new Label("Category: " + task.getCategory());
+                            categoryLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: darkviolet;");
+
                             // Task Deadline Label
                             Label deadlineLabel = new Label("Deadline: " + (task.getDeadline() != null ? task.getDeadline() : "No deadline"));
                             deadlineLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: darkblue;");
@@ -258,7 +275,7 @@ public class TaskManagerUI extends Application {
                             }
 
                             // Layout the task info
-                            VBox taskInfoBox = new VBox(5, titleLabel, descriptionLabel, deadlineLabel, priorityLabel);
+                            VBox taskInfoBox = new VBox(5, titleLabel, descriptionLabel, categoryLabel, deadlineLabel, priorityLabel);
                             HBox cellContent = new HBox(10, statusIcon, taskInfoBox);
 
                             setGraphic(cellContent);
@@ -272,6 +289,7 @@ public class TaskManagerUI extends Application {
                                 selectedTask = task;
                                 titleField.setText(task.getTitle());
                                 descriptionField.setText(task.getDescription());
+                                categoryField.setText(task.getCategory());
                                 deadlinePicker.setValue(task.getDeadline().toLocalDate());
                                 hourSpinner.getValueFactory().setValue(task.getDeadline().getHour() % 12 == 0 ? 12 : task.getDeadline().getHour() % 12);
                                 minuteSpinner.getValueFactory().setValue(task.getDeadline().getMinute());
@@ -286,7 +304,7 @@ public class TaskManagerUI extends Application {
                                 task.setCompleted(!task.isCompleted());
                                 taskManager.saveTasksToFile();
                                 taskList.setAll(taskManager.getAllTasks());
-                                applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue());  // Apply filters and sort after toggle
+                                applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue());  // Apply filters and sort after toggle
                                 Notifications.create().title("Task Updated").text("Task completion status has been toggled.").showInformation();
                             });
 
@@ -295,7 +313,7 @@ public class TaskManagerUI extends Application {
                             deleteMenuItem.setOnAction(event -> {
                                 taskManager.deleteTask(task.getId());
                                 taskList.setAll(taskManager.getAllTasks());
-                                applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue());  // Apply filters and sort after delete
+                                applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue());  // Apply filters and sort after delete
                                 Notifications.create().title("Task Deleted").text("Task has been deleted.").showInformation();
                             });
 
@@ -322,6 +340,7 @@ public class TaskManagerUI extends Application {
                 selectedTask = newSelection;
                 titleField.setText(selectedTask.getTitle());
                 descriptionField.setText(selectedTask.getDescription());
+                categoryField.setText(selectedTask.getCategory());
                 deadlinePicker.setValue(selectedTask.getDeadline().toLocalDate());
                 hourSpinner.getValueFactory().setValue(selectedTask.getDeadline().getHour() % 12 == 0 ? 12 : selectedTask.getDeadline().getHour() % 12);
                 minuteSpinner.getValueFactory().setValue(selectedTask.getDeadline().getMinute());
@@ -334,7 +353,7 @@ public class TaskManagerUI extends Application {
         // Create the main layout for the application
         BorderPane mainLayout = new BorderPane();
         mainLayout.setTop(menuBar);
-        VBox contentLayout = new VBox(10, filterSortBox, titleField, descriptionField, deadlinePicker, timeBox, priorityComboBox, buttonBox, listView);
+        VBox contentLayout = new VBox(10, filterSortBox, titleField, descriptionField, categoryField, deadlinePicker, timeBox, priorityComboBox, buttonBox, listView);
         contentLayout.setPadding(new Insets(10));
         mainLayout.setCenter(contentLayout);
 
@@ -346,11 +365,12 @@ public class TaskManagerUI extends Application {
     }
 
     // Method to create or update a task
-    private void createOrUpdateTask(TextField titleField, TextArea descriptionField, DatePicker deadlinePicker,
+    private void createOrUpdateTask(TextField titleField, TextArea descriptionField, TextField categoryField, DatePicker deadlinePicker,
                                     Spinner<Integer> hourSpinner, Spinner<Integer> minuteSpinner, ComboBox<String> amPmComboBox,
                                     ComboBox<TaskPriority> priorityComboBox, boolean isEdit) {
         String title = titleField.getText();
         String description = descriptionField.getText();
+        String category = categoryField.getText();  // Retrieve the category
         LocalDate date = deadlinePicker.getValue();
         int hour = hourSpinner.getValue();
         int minute = minuteSpinner.getValue();
@@ -364,8 +384,8 @@ public class TaskManagerUI extends Application {
         LocalDateTime deadline = LocalDateTime.of(date, time);
         TaskPriority priority = priorityComboBox.getValue();
 
-        if (priority == null || date == null) {
-            Notifications.create().title("Error").text("Please select a date and priority").showWarning();
+        if (priority == null || date == null || category.isEmpty()) {
+            Notifications.create().title("Error").text("Please select a date, priority, and category").showWarning();
             return;
         }
 
@@ -374,18 +394,26 @@ public class TaskManagerUI extends Application {
             selectedTask.setDescription(description);
             selectedTask.setDeadline(deadline);
             selectedTask.setPriority(priority);
+            selectedTask.setCategory(category);  // Update the category
         } else {
-            Task newTask = new Task(taskList.size() + 1, title, description, deadline, priority);
+            Task newTask = new Task(taskList.size() + 1, title, description, deadline, priority, category);
             taskManager.addTask(newTask);
         }
 
         taskManager.saveTasksToFile();
         taskList.setAll(taskManager.getAllTasks());
-        applyFilterAndSort(null, null);
+        applyFilterAndSort(null, null, null);
+    }
+
+    // Method to populate category filter dynamically based on existing tasks
+    private void populateCategoryFilter(ComboBox<String> categoryFilterDropdown) {
+        Set<String> categories = taskList.stream().map(Task::getCategory).collect(Collectors.toSet());
+        categoryFilterDropdown.getItems().setAll("All Categories");
+        categoryFilterDropdown.getItems().addAll(categories);
     }
 
     // Method to apply filters and sorting to the task list
-    private void applyFilterAndSort(String filter, String sortBy) {
+    private void applyFilterAndSort(String filter, String sortBy, String category) {
         Predicate<Task> filterCondition = task -> true;
 
         if (filter != null) {
@@ -400,6 +428,11 @@ public class TaskManagerUI extends Application {
                     filterCondition = task -> true;
                     break;
             }
+        }
+
+        if (category != null && !category.equals("All Categories")) {
+            Predicate<Task> categoryCondition = task -> task.getCategory().equals(category);
+            filterCondition = filterCondition.and(categoryCondition);
         }
 
         Comparator<Task> comparator = Comparator.comparing(Task::getDeadline);
