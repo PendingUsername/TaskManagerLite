@@ -1,9 +1,12 @@
 # Task Manager Lite
-A lightweight task manager app written in Java
+![Task Manager Lite](task.png)
+---------------------------------------------------------------------------
+# A lightweight task manager app written in Java. 
 
+# How to use
 build using ./gradlew build
-run using ./gradlew run
 
+run using ./gradlew run
 # Features as of 10/24/24
 **Persistence** (Saving and Loading Tasks)
 
