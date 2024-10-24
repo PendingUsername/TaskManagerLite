@@ -21,13 +21,14 @@ import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import net.synedra.validatorfx.Validator;
 
 import java.io.File;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Set;
-import java.util.Stack;
+import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -42,6 +43,10 @@ public class TaskManagerUI extends Application {
     // Undo/Redo functionality
     private Stack<List<Task>> undoStack = new Stack<>();
     private Stack<List<Task>> redoStack = new Stack<>();
+
+    // Reminder-related
+    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private Map<Task, Runnable> taskReminderMap = new HashMap<>();
 
     @Override
     public void start(Stage primaryStage) {
@@ -442,6 +447,9 @@ public class TaskManagerUI extends Application {
         mainScene.getStylesheets().add(getClass().getResource("/css/light-theme.css").toExternalForm());
         primaryStage.setScene(mainScene);
         primaryStage.show();
+
+        // Start reminder scheduling for existing tasks
+        taskList.forEach(this::scheduleTaskReminder);
     }
 
     // Method to create or update a task
@@ -478,11 +486,37 @@ public class TaskManagerUI extends Application {
         } else {
             Task newTask = new Task(taskList.size() + 1, title, description, deadline, priority, category);
             taskManager.addTask(newTask);
+            scheduleTaskReminder(newTask);  // Schedule a reminder for the new task
         }
 
         taskManager.saveTasksToFile();
         taskList.setAll(taskManager.getAllTasks());
         applyFilterAndSort(null, null, null);
+    }
+
+    // Method to schedule a reminder for a task 10 minutes before the deadline
+    private void scheduleTaskReminder(Task task) {
+        // Cancel any existing reminder for the task
+        Runnable existingReminder = taskReminderMap.remove(task);
+        if (existingReminder != null) {
+            scheduler.shutdownNow();
+            scheduler = Executors.newScheduledThreadPool(1);  // Reset the scheduler
+        }
+
+        // Calculate delay until 10 minutes before the deadline
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime taskDeadline = task.getDeadline();
+        if (taskDeadline.isAfter(now)) {
+            long delay = Duration.between(now, taskDeadline.minusMinutes(10)).toMillis();
+
+            Runnable reminderTask = () -> Notifications.create()
+                    .title("Reminder")
+                    .text("Task '" + task.getTitle() + "' is due in 10 minutes!")
+                    .showInformation();
+
+            scheduler.schedule(reminderTask, delay, TimeUnit.MILLISECONDS);
+            taskReminderMap.put(task, reminderTask);  // Store the reminder in the map
+        }
     }
 
     // Method to populate category filter dynamically based on existing tasks
