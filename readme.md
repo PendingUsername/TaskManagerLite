@@ -35,3 +35,7 @@ Allow users to assign categories to tasks.
 **Task Reminders**
 
 Add reminders that notify the user before a task is done. 
+
+**User Authentication**
+
+Users can create a pin to keep their tasks secure. Pin is stored locally.
