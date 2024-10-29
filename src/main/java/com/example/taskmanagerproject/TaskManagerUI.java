@@ -20,7 +20,11 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import net.synedra.validatorfx.Validator;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.*;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -48,9 +52,22 @@ public class TaskManagerUI extends Application {
     private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private Map<Task, Runnable> taskReminderMap = new HashMap<>();
 
+    // PIN protection-related variables
+    private boolean pinProtectionEnabled = false;
+    private String userPin = "";
+    private final Path configFile = Paths.get("config.txt");
+
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Task Manager");
+
+        // Load PIN configuration on startup
+        loadConfig();
+
+        // Prompt for PIN if enabled
+        if (pinProtectionEnabled && !promptForPin()) {
+            System.exit(0); // Exit if PIN is incorrect
+        }
 
         // Initialize task list and filtered task list for sorting/filtering
         taskList = FXCollections.observableArrayList(taskManager.getAllTasks());
@@ -86,6 +103,15 @@ public class TaskManagerUI extends Application {
 
         viewMenu.getItems().addAll(showCompletedMenuItem, darkModeMenuItem);
 
+        // Settings Menu
+        Menu settingsMenu = new Menu("Settings");
+        CheckMenuItem enablePinMenuItem = new CheckMenuItem("Enable PIN Protection");
+        enablePinMenuItem.setSelected(pinProtectionEnabled);
+        enablePinMenuItem.setOnAction(e -> togglePinProtection());
+        settingsMenu.getItems().add(enablePinMenuItem);
+
+        menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, settingsMenu);
+
         // Toggle Dark Mode
         darkModeMenuItem.setOnAction(e -> {
             String lightTheme = getClass().getResource("/css/light-theme.css").toExternalForm();
@@ -105,12 +131,6 @@ public class TaskManagerUI extends Application {
             showCompletedTasks = showCompletedMenuItem.isSelected();
             applyFilterAndSort(null, null, null);
         });
-
-        // Help Menu
-        Menu helpMenu = new Menu("Help");
-        MenuItem aboutMenuItem = new MenuItem("About");
-        helpMenu.getItems().add(aboutMenuItem);
-        menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, helpMenu);
 
         // Task Filtering and Sorting Dropdowns
         ComboBox<String> filterDropdown = new ComboBox<>();
@@ -218,7 +238,7 @@ public class TaskManagerUI extends Application {
 
         redoMenuItem.setOnAction(e -> {
             if (!redoStack.isEmpty()) {
-                backupTaskList(undoStack);  // Backup current state to undo stack
+                backupTaskList(undoStack);  // Backup current state for undo
                 List<Task> nextState = redoStack.pop();
                 taskManager.setTasks(nextState);  // Restore next state
                 taskList.setAll(taskManager.getAllTasks());
@@ -574,6 +594,58 @@ public class TaskManagerUI extends Application {
                 .map(task -> new Task(task.getId(), task.getTitle(), task.getDescription(), task.getDeadline(), task.getPriority(), task.getCategory()))
                 .collect(Collectors.toList());
         stack.push(currentState);
+    }
+
+    // PIN prompt dialog
+    private boolean promptForPin() {
+        TextInputDialog pinDialog = new TextInputDialog();
+        pinDialog.setTitle("Enter PIN");
+        pinDialog.setHeaderText("PIN Protection Enabled");
+        pinDialog.setContentText("Please enter your PIN:");
+
+        Optional<String> result = pinDialog.showAndWait();
+        return result.isPresent() && result.get().equals(userPin);
+    }
+
+    // Load PIN configuration from file
+    private void loadConfig() {
+        if (Files.exists(configFile)) {
+            try (BufferedReader reader = Files.newBufferedReader(configFile)) {
+                pinProtectionEnabled = Boolean.parseBoolean(reader.readLine());
+                userPin = reader.readLine();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    // Toggle PIN protection
+    private void togglePinProtection() {
+        TextInputDialog pinDialog = new TextInputDialog();
+        pinDialog.setTitle("Set PIN");
+        pinDialog.setHeaderText("Enter a new PIN");
+        pinDialog.setContentText("PIN:");
+
+        Optional<String> result = pinDialog.showAndWait();
+        if (result.isPresent()) {
+            userPin = result.get();
+            pinProtectionEnabled = !pinProtectionEnabled;
+            saveConfig();
+            Notifications.create().title("PIN Protection")
+                    .text(pinProtectionEnabled ? "PIN Protection Enabled" : "PIN Protection Disabled")
+                    .showInformation();
+        }
+    }
+
+    // Save PIN configuration to file
+    private void saveConfig() {
+        try (BufferedWriter writer = Files.newBufferedWriter(configFile)) {
+            writer.write(String.valueOf(pinProtectionEnabled));
+            writer.newLine();
+            writer.write(userPin);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     // Helper method to get priority color
