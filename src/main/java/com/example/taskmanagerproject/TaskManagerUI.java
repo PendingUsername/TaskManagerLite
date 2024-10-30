@@ -20,7 +20,6 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import net.synedra.validatorfx.Validator;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
@@ -29,12 +28,19 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class TaskManagerUI extends Application {
     private TaskManager taskManager = new TaskManager();
@@ -71,7 +77,7 @@ public class TaskManagerUI extends Application {
 
         // Initialize task list and filtered task list for sorting/filtering
         taskList = FXCollections.observableArrayList(taskManager.getAllTasks());
-        filteredTaskList = FXCollections.observableArrayList(taskList);  // Filtered view for sorting and filtering
+        filteredTaskList = FXCollections.observableArrayList(taskList);
 
         ListView<Task> listView = new ListView<>(filteredTaskList);
         listView.setPrefHeight(200);
@@ -85,9 +91,22 @@ public class TaskManagerUI extends Application {
         MenuItem deleteAllMenuItem = new MenuItem("Delete All Tasks");
         MenuItem exportToTxtMenuItem = new MenuItem("Export to TXT");
         MenuItem exportToCsvMenuItem = new MenuItem("Export to CSV");
+        MenuItem exportToCalendarMenuItem = new MenuItem("Export to Calendar (.ics)");
         MenuItem exitMenuItem = new MenuItem("Exit");
 
-        fileMenu.getItems().addAll(saveTasksMenuItem, deleteAllMenuItem, new SeparatorMenuItem(), exportToTxtMenuItem, exportToCsvMenuItem, new SeparatorMenuItem(), exitMenuItem);
+        fileMenu.getItems().addAll(saveTasksMenuItem, deleteAllMenuItem, new SeparatorMenuItem(), exportToTxtMenuItem, exportToCsvMenuItem, exportToCalendarMenuItem, new SeparatorMenuItem(), exitMenuItem);
+
+        // Add calendar export functionality
+        exportToCalendarMenuItem.setOnAction(e -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Export Tasks as Calendar (.ics)");
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("ICS Files", "*.ics"));
+            File file = fileChooser.showSaveDialog(primaryStage);
+            if (file != null) {
+                exportTasksToCalendar(file.getAbsolutePath());
+                Notifications.create().title("Exported").text("Tasks exported to calendar (.ics)").showInformation();
+            }
+        });
 
         // Edit Menu
         Menu editMenu = new Menu("Edit");
@@ -98,7 +117,7 @@ public class TaskManagerUI extends Application {
         // View Menu
         Menu viewMenu = new Menu("View");
         CheckMenuItem showCompletedMenuItem = new CheckMenuItem("Show Completed Tasks");
-        showCompletedMenuItem.setSelected(true); // Default to showing completed tasks
+        showCompletedMenuItem.setSelected(true);
         CheckMenuItem darkModeMenuItem = new CheckMenuItem("Dark Mode");
 
         viewMenu.getItems().addAll(showCompletedMenuItem, darkModeMenuItem);
@@ -143,9 +162,9 @@ public class TaskManagerUI extends Application {
 
         // ComboBox for category filter
         ComboBox<String> categoryFilterDropdown = new ComboBox<>();
-        categoryFilterDropdown.getItems().add("All Categories"); // Default option
+        categoryFilterDropdown.getItems().add("All Categories");
         categoryFilterDropdown.setValue("All Categories");
-        populateCategoryFilter(categoryFilterDropdown);  // Dynamically populate based on existing tasks
+        populateCategoryFilter(categoryFilterDropdown);
 
         filterDropdown.setOnAction(e -> applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue()));
         sortDropdown.setOnAction(e -> applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue()));
@@ -172,7 +191,7 @@ public class TaskManagerUI extends Application {
         Spinner<Integer> hourSpinner = new Spinner<>(1, 12, 12);
         Spinner<Integer> minuteSpinner = new Spinner<>(0, 59, 0);
         ComboBox<String> amPmComboBox = new ComboBox<>(FXCollections.observableArrayList("AM", "PM"));
-        amPmComboBox.setValue("PM");  // Default to PM
+        amPmComboBox.setValue("PM");
         hourSpinner.setPrefWidth(60);
         minuteSpinner.setPrefWidth(60);
 
@@ -182,7 +201,7 @@ public class TaskManagerUI extends Application {
                 setConverter(new StringConverter<>() {
                     @Override
                     public String toString(Integer value) {
-                        return value == null ? "00" : String.format("%02d", value);  // Pads with zero if needed
+                        return value == null ? "00" : String.format("%02d", value);
                     }
 
                     @Override
@@ -190,7 +209,7 @@ public class TaskManagerUI extends Application {
                         try {
                             return Integer.parseInt(string);
                         } catch (NumberFormatException e) {
-                            return 0;  // Default value if invalid input
+                            return 0;
                         }
                     }
                 });
@@ -219,59 +238,59 @@ public class TaskManagerUI extends Application {
         // Add/Edit task buttons
         Button addButton = new Button("Add Task");
         Button editButton = new Button("Edit Task");
-        editButton.setDisable(true);  // Initially disabled until a task is selected
+        editButton.setDisable(true);
         Button toggleCompletionButton = new Button("Mark Complete/Incomplete");
 
-        HBox buttonBox = new HBox(10);  // 10px spacing between buttons
+        HBox buttonBox = new HBox(10);
         buttonBox.getChildren().addAll(addButton, editButton, toggleCompletionButton);
 
         // Undo/Redo Menu actions
         undoMenuItem.setOnAction(e -> {
             if (!undoStack.isEmpty()) {
-                backupTaskList(redoStack);  // Backup current state to redo stack
+                backupTaskList(redoStack);
                 List<Task> previousState = undoStack.pop();
-                taskManager.setTasks(previousState);  // Restore previous state
+                taskManager.setTasks(previousState);
                 taskList.setAll(taskManager.getAllTasks());
-                applyFilterAndSort(null, null, null);  // Apply filters and sort
+                applyFilterAndSort(null, null, null);
             }
         });
 
         redoMenuItem.setOnAction(e -> {
             if (!redoStack.isEmpty()) {
-                backupTaskList(undoStack);  // Backup current state for undo
+                backupTaskList(undoStack);
                 List<Task> nextState = redoStack.pop();
-                taskManager.setTasks(nextState);  // Restore next state
+                taskManager.setTasks(nextState);
                 taskList.setAll(taskManager.getAllTasks());
-                applyFilterAndSort(null, null, null);  // Apply filters and sort
+                applyFilterAndSort(null, null, null);
             }
         });
 
         // Add Task Action
         addButton.setOnAction(e -> {
             if (validator.validate()) {
-                backupTaskList(undoStack);  // Backup current state for undo
+                backupTaskList(undoStack);
                 createOrUpdateTask(titleField, descriptionField, categoryField, deadlinePicker, hourSpinner, minuteSpinner, amPmComboBox, priorityComboBox, false);
-                populateCategoryFilter(categoryFilterDropdown);  // Refresh category filter after adding a task
+                populateCategoryFilter(categoryFilterDropdown);
             }
         });
 
         // Edit Task Action
         editButton.setOnAction(e -> {
             if (selectedTask != null) {
-                backupTaskList(undoStack);  // Backup current state for undo
+                backupTaskList(undoStack);
                 createOrUpdateTask(titleField, descriptionField, categoryField, deadlinePicker, hourSpinner, minuteSpinner, amPmComboBox, priorityComboBox, true);
-                populateCategoryFilter(categoryFilterDropdown);  // Refresh category filter after editing a task
+                populateCategoryFilter(categoryFilterDropdown);
             }
         });
 
         // Toggle task completion status
         toggleCompletionButton.setOnAction(e -> {
             if (selectedTask != null) {
-                backupTaskList(undoStack);  // Backup current state for undo
+                backupTaskList(undoStack);
                 selectedTask.setCompleted(!selectedTask.isCompleted());
                 taskManager.saveTasksToFile();
-                taskList.setAll(taskManager.getAllTasks());  // Refresh task list
-                applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue());  // Apply filters and sort after toggle
+                taskList.setAll(taskManager.getAllTasks());
+                applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue());
                 Notifications.create().title("Task Updated").text("Task completion status has been toggled.").showInformation();
             } else {
                 Notifications.create().title("No Task Selected").text("Please select a task to toggle completion.").showWarning();
@@ -359,29 +378,27 @@ public class TaskManagerUI extends Application {
                                 task.setCompleted(!task.isCompleted());
                                 taskManager.saveTasksToFile();
                                 taskList.setAll(taskManager.getAllTasks());
-                                applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue());  // Apply filters and sort after toggle
+                                applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue());
                                 Notifications.create().title("Task Updated").text("Task completion status has been toggled.").showInformation();
                             });
 
                             // Context menu item: Delete Task
                             MenuItem deleteMenuItem = new MenuItem("Delete Task");
                             deleteMenuItem.setOnAction(event -> {
-                                backupTaskList(undoStack);  // Backup current state for undo
+                                backupTaskList(undoStack);
                                 taskManager.deleteTask(task.getId());
                                 taskList.setAll(taskManager.getAllTasks());
-                                applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue());  // Apply filters and sort after delete
+                                applyFilterAndSort(filterDropdown.getValue(), sortDropdown.getValue(), categoryFilterDropdown.getValue());
                                 Notifications.create().title("Task Deleted").text("Task has been deleted.").showInformation();
                             });
 
-                            // Add menu items to the context menu
                             contextMenu.getItems().addAll(editMenuItem, toggleCompleteMenuItem, deleteMenuItem);
 
-                            // Show the context menu on right-click (using MouseEvent)
                             setOnMouseClicked((MouseEvent event) -> {
                                 if (event.getButton() == MouseButton.SECONDARY && task != null) {
                                     contextMenu.show(this, event.getScreenX(), event.getScreenY());
                                 } else {
-                                    contextMenu.hide();  // Hide the context menu if not right-click
+                                    contextMenu.hide();
                                 }
                             });
                         }
@@ -390,7 +407,6 @@ public class TaskManagerUI extends Application {
             }
         });
 
-        // Handle task selection from the ListView
         listView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 selectedTask = newSelection;
@@ -402,17 +418,15 @@ public class TaskManagerUI extends Application {
                 minuteSpinner.getValueFactory().setValue(selectedTask.getDeadline().getMinute());
                 amPmComboBox.setValue(selectedTask.getDeadline().getHour() < 12 ? "AM" : "PM");
                 priorityComboBox.setValue(selectedTask.getPriority());
-                editButton.setDisable(false);  // Enable the edit button when a task is selected
+                editButton.setDisable(false);
             }
         });
 
-        // Save Tasks Action
         saveTasksMenuItem.setOnAction(e -> {
             taskManager.saveTasksToFile();
             Notifications.create().title("Tasks Saved").text("All tasks have been saved successfully.").showInformation();
         });
 
-        // Delete All Tasks Action
         deleteAllMenuItem.setOnAction(e -> {
             Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
             confirmAlert.setTitle("Confirm Deletion");
@@ -420,15 +434,14 @@ public class TaskManagerUI extends Application {
             confirmAlert.setContentText("This will delete all tasks. Are you sure?");
             confirmAlert.showAndWait().ifPresent(response -> {
                 if (response == ButtonType.OK) {
-                    backupTaskList(undoStack);  // Backup current state for undo
+                    backupTaskList(undoStack);
                     taskManager.deleteAllTasks();
-                    taskList.setAll(taskManager.getAllTasks());  // Refresh task list
+                    taskList.setAll(taskManager.getAllTasks());
                     Notifications.create().title("Tasks Deleted").text("All tasks have been deleted.").showInformation();
                 }
             });
         });
 
-        // Export to TXT Action
         exportToTxtMenuItem.setOnAction(e -> {
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("Save Tasks as TXT");
@@ -440,7 +453,6 @@ public class TaskManagerUI extends Application {
             }
         });
 
-        // Export to CSV Action
         exportToCsvMenuItem.setOnAction(e -> {
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("Save Tasks as CSV");
@@ -452,39 +464,58 @@ public class TaskManagerUI extends Application {
             }
         });
 
-        // Exit action
         exitMenuItem.setOnAction(e -> primaryStage.close());
 
-        // Create the main layout for the application
         BorderPane mainLayout = new BorderPane();
         mainLayout.setTop(menuBar);
         VBox contentLayout = new VBox(10, filterSortBox, titleField, descriptionField, categoryField, deadlinePicker, timeBox, priorityComboBox, buttonBox, listView);
         contentLayout.setPadding(new Insets(10));
         mainLayout.setCenter(contentLayout);
 
-        // Create a Scene with the main layout
         mainScene = new Scene(mainLayout, 500, 600);
         mainScene.getStylesheets().add(getClass().getResource("/css/light-theme.css").toExternalForm());
         primaryStage.setScene(mainScene);
         primaryStage.show();
 
-        // Start reminder scheduling for existing tasks
         taskList.forEach(this::scheduleTaskReminder);
     }
 
-    // Method to create or update a task
+    private void exportTasksToCalendar(String filePath) {
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss");
+        StringBuilder icsContent = new StringBuilder("BEGIN:VCALENDAR\nVERSION:2.0\n");
+
+        for (Task task : taskList) {
+            if (task.getDeadline() != null) {
+                icsContent.append("BEGIN:VEVENT\n")
+                        .append("UID:").append(task.getId()).append("\n")
+                        .append("SUMMARY:").append(task.getTitle()).append("\n")
+                        .append("DESCRIPTION:").append(task.getDescription()).append("\n")
+                        .append("DTSTART:").append(task.getDeadline().format(dateFormatter)).append("\n")
+                        .append("PRIORITY:").append(task.getPriority().ordinal() + 1).append("\n")
+                        .append("END:VEVENT\n");
+            }
+        }
+        icsContent.append("END:VCALENDAR");
+
+        try {
+            Files.write(Paths.get(filePath), icsContent.toString().getBytes());
+        } catch (IOException e) {
+            Notifications.create().title("Error").text("Failed to export to calendar").showError();
+            e.printStackTrace();
+        }
+    }
+
     private void createOrUpdateTask(TextField titleField, TextArea descriptionField, TextField categoryField, DatePicker deadlinePicker,
                                     Spinner<Integer> hourSpinner, Spinner<Integer> minuteSpinner, ComboBox<String> amPmComboBox,
                                     ComboBox<TaskPriority> priorityComboBox, boolean isEdit) {
         String title = titleField.getText();
         String description = descriptionField.getText();
-        String category = categoryField.getText();  // Retrieve the category
+        String category = categoryField.getText();
         LocalDate date = deadlinePicker.getValue();
         int hour = hourSpinner.getValue();
         int minute = minuteSpinner.getValue();
         String amPm = amPmComboBox.getValue();
 
-        // Convert the 12-hour time with AM/PM to 24-hour time
         if (amPm.equals("PM") && hour != 12) hour += 12;
         else if (amPm.equals("AM") && hour == 12) hour = 0;
 
@@ -502,11 +533,11 @@ public class TaskManagerUI extends Application {
             selectedTask.setDescription(description);
             selectedTask.setDeadline(deadline);
             selectedTask.setPriority(priority);
-            selectedTask.setCategory(category);  // Update the category
+            selectedTask.setCategory(category);
         } else {
             Task newTask = new Task(taskList.size() + 1, title, description, deadline, priority, category);
             taskManager.addTask(newTask);
-            scheduleTaskReminder(newTask);  // Schedule a reminder for the new task
+            scheduleTaskReminder(newTask);
         }
 
         taskManager.saveTasksToFile();
@@ -514,16 +545,13 @@ public class TaskManagerUI extends Application {
         applyFilterAndSort(null, null, null);
     }
 
-    // Method to schedule a reminder for a task 10 minutes before the deadline
     private void scheduleTaskReminder(Task task) {
-        // Cancel any existing reminder for the task
         Runnable existingReminder = taskReminderMap.remove(task);
         if (existingReminder != null) {
             scheduler.shutdownNow();
-            scheduler = Executors.newScheduledThreadPool(1);  // Reset the scheduler
+            scheduler = Executors.newScheduledThreadPool(1);
         }
 
-        // Calculate delay until 10 minutes before the deadline
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime taskDeadline = task.getDeadline();
         if (taskDeadline.isAfter(now)) {
@@ -535,18 +563,16 @@ public class TaskManagerUI extends Application {
                     .showInformation();
 
             scheduler.schedule(reminderTask, delay, TimeUnit.MILLISECONDS);
-            taskReminderMap.put(task, reminderTask);  // Store the reminder in the map
+            taskReminderMap.put(task, reminderTask);
         }
     }
 
-    // Method to populate category filter dynamically based on existing tasks
     private void populateCategoryFilter(ComboBox<String> categoryFilterDropdown) {
         Set<String> categories = taskList.stream().map(Task::getCategory).collect(Collectors.toSet());
         categoryFilterDropdown.getItems().setAll("All Categories");
         categoryFilterDropdown.getItems().addAll(categories);
     }
 
-    // Method to apply filters and sorting to the task list
     private void applyFilterAndSort(String filter, String sortBy, String category) {
         Predicate<Task> filterCondition = task -> true;
 
@@ -577,7 +603,7 @@ public class TaskManagerUI extends Application {
                     comparator = Comparator.comparing(Task::getPriority);
                     break;
                 case "Creation Date":
-                    comparator = Comparator.comparing(Task::getId);  // Assuming ID represents creation order
+                    comparator = Comparator.comparing(Task::getId);
                     break;
                 default:
                     comparator = Comparator.comparing(Task::getDeadline);
@@ -588,7 +614,6 @@ public class TaskManagerUI extends Application {
         filteredTaskList.setAll(taskList.stream().filter(filterCondition).sorted(comparator).collect(Collectors.toList()));
     }
 
-    // Backup current task list to undo/redo stack
     private void backupTaskList(Stack<List<Task>> stack) {
         List<Task> currentState = taskList.stream()
                 .map(task -> new Task(task.getId(), task.getTitle(), task.getDescription(), task.getDeadline(), task.getPriority(), task.getCategory()))
@@ -596,7 +621,6 @@ public class TaskManagerUI extends Application {
         stack.push(currentState);
     }
 
-    // PIN prompt dialog
     private boolean promptForPin() {
         TextInputDialog pinDialog = new TextInputDialog();
         pinDialog.setTitle("Enter PIN");
@@ -607,7 +631,6 @@ public class TaskManagerUI extends Application {
         return result.isPresent() && result.get().equals(userPin);
     }
 
-    // Load PIN configuration from file
     private void loadConfig() {
         if (Files.exists(configFile)) {
             try (BufferedReader reader = Files.newBufferedReader(configFile)) {
@@ -619,7 +642,6 @@ public class TaskManagerUI extends Application {
         }
     }
 
-    // Toggle PIN protection
     private void togglePinProtection() {
         TextInputDialog pinDialog = new TextInputDialog();
         pinDialog.setTitle("Set PIN");
@@ -637,7 +659,6 @@ public class TaskManagerUI extends Application {
         }
     }
 
-    // Save PIN configuration to file
     private void saveConfig() {
         try (BufferedWriter writer = Files.newBufferedWriter(configFile)) {
             writer.write(String.valueOf(pinProtectionEnabled));
@@ -648,7 +669,6 @@ public class TaskManagerUI extends Application {
         }
     }
 
-    // Helper method to get priority color
     private String getPriorityColor(Task task) {
         switch (task.getPriority()) {
             case LOW:
