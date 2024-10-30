@@ -39,3 +39,7 @@ Add reminders that notify the user before a task is done.
 **User Authentication**
 
 Users can create a pin to keep their tasks secure. Pin is stored locally.
+
+**Calendar support**
+
+.ics export functionality 
