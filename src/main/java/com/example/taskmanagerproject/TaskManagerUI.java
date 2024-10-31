@@ -41,6 +41,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import javax.mail.*;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
+import java.util.Properties;
+
 
 public class TaskManagerUI extends Application {
     private TaskManager taskManager = new TaskManager();
@@ -49,6 +54,12 @@ public class TaskManagerUI extends Application {
     private Task selectedTask = null;
     private boolean showCompletedTasks = true;
     private Scene mainScene;
+
+    // Email Configuration
+    private static final String SMTP_SERVER = "smtp.gmail.com";
+    private static final String USERNAME = "your-email@gmail.com";
+    private static final String PASSWORD = "your-email-password";
+    private static final String EMAIL_FROM = "your-email@gmail.com";
 
     // Undo/Redo functionality
     private Stack<List<Task>> undoStack = new Stack<>();
@@ -92,9 +103,22 @@ public class TaskManagerUI extends Application {
         MenuItem exportToTxtMenuItem = new MenuItem("Export to TXT");
         MenuItem exportToCsvMenuItem = new MenuItem("Export to CSV");
         MenuItem exportToCalendarMenuItem = new MenuItem("Export to Calendar (.ics)");
+        MenuItem emailTasksMenuItem = new MenuItem("Email Tasks");
         MenuItem exitMenuItem = new MenuItem("Exit");
 
-        fileMenu.getItems().addAll(saveTasksMenuItem, deleteAllMenuItem, new SeparatorMenuItem(), exportToTxtMenuItem, exportToCsvMenuItem, exportToCalendarMenuItem, new SeparatorMenuItem(), exitMenuItem);
+        fileMenu.getItems().addAll(saveTasksMenuItem, deleteAllMenuItem, new SeparatorMenuItem(), exportToTxtMenuItem, exportToCsvMenuItem, exportToCalendarMenuItem, emailTasksMenuItem, new SeparatorMenuItem(), exitMenuItem);
+
+        emailTasksMenuItem.setOnAction(e -> {
+            TextInputDialog dialog = new TextInputDialog();
+            dialog.setTitle("Email Tasks");
+            dialog.setHeaderText("Enter recipient email address");
+
+            Optional<String> result = dialog.showAndWait();
+            result.ifPresent(email -> {
+                sendTasksByEmail(taskManager.getAllTasks(), email);
+                Notifications.create().title("Email Sent").text("Tasks have been emailed to " + email).showInformation();
+            });
+        });
 
         // Add calendar export functionality
         exportToCalendarMenuItem.setOnAction(e -> {
@@ -564,6 +588,45 @@ public class TaskManagerUI extends Application {
 
             scheduler.schedule(reminderTask, delay, TimeUnit.MILLISECONDS);
             taskReminderMap.put(task, reminderTask);
+        }
+    }
+    // Method to send tasks by email
+    public void sendTasksByEmail(List<Task> tasks, String recipientEmail) {
+        Properties prop = new Properties();
+        prop.put("mail.smtp.host", SMTP_SERVER);
+        prop.put("mail.smtp.port", "587");
+        prop.put("mail.smtp.auth", "true");
+        prop.put("mail.smtp.starttls.enable", "true");
+
+        Session session = Session.getInstance(prop, new Authenticator() {
+            @Override
+            protected PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(USERNAME, PASSWORD);
+            }
+        });
+
+        try {
+            Message message = new MimeMessage(session);
+            message.setFrom(new InternetAddress(EMAIL_FROM));
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipientEmail));
+            message.setSubject("Your Task List");
+
+            // Build the email content
+            StringBuilder emailContent = new StringBuilder("Here are your tasks:\n\n");
+            for (Task task : tasks) {
+                emailContent.append("Title: ").append(task.getTitle()).append("\n");
+                emailContent.append("Description: ").append(task.getDescription()).append("\n");
+                emailContent.append("Deadline: ").append(task.getDeadline()).append("\n");
+                emailContent.append("Priority: ").append(task.getPriority()).append("\n");
+                emailContent.append("Status: ").append(task.isCompleted() ? "Completed" : "Incomplete").append("\n\n");
+            }
+
+            message.setText(emailContent.toString());
+            Transport.send(message);
+            System.out.println("Email sent successfully!");
+
+        } catch (MessagingException e) {
+            e.printStackTrace();
         }
     }
 

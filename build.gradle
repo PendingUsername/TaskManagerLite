@@ -54,6 +54,10 @@ dependencies {
   // JUnit 5 for testing
   testImplementation("org.junit.jupiter:junit-jupiter-api:${junitVersion}")
   testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${junitVersion}")
+
+  // Email functionality
+  implementation 'com.sun.mail:jakarta.mail:1.6.7'
+
 }
 
 // Ensure the resources folder is included in the build
