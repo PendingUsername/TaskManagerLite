@@ -43,3 +43,7 @@ Users can create a pin to keep their tasks secure. Pin is stored locally.
 **Calendar support**
 
 .ics export functionality. 
+
+**Email list - in progress**
+
+Email tasks list
