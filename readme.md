@@ -7,7 +7,7 @@
 build using ./gradlew build
 
 run using ./gradlew run
-# Features as of 10/30/24
+# Features as of 10/31/24
 **Persistence** (Saving and Loading Tasks)
 
 Add the ability to save tasks to a file (e.g., text ) and load them when the app starts. This will ensure that tasks persist across sessions.
